@@ -220,6 +220,8 @@ $ python3 -m pytest tests/ skills/opus-mind/tests/ -q
 
 ### External prompt scores (LINT, live from CL4R1T4S)
 
+<!-- benchmark:begin -->
+
 Re-scored 2026-04-17 with the new auditor (verdict, thin-content gate,
 placeholder penalty applied). Each entry links to the source.
 
@@ -230,7 +232,16 @@ placeholder penalty applied). Each entry links to the source.
 | [ChatGPT-5 (Aug 2025)](https://github.com/elder-plinius/CL4R1T4S/blob/main/OPENAI/ChatGPT5-08-07-2025.mkd) | 4/11 | POOR | I1, I2, I3, I5, I6, I9, I11 |
 | [Claude Code (March 2024)](https://github.com/elder-plinius/CL4R1T4S/blob/main/ANTHROPIC/Claude_Code_03-04-24.md) | 7/11 | BORDERLINE | I2 ladder, I3 reframe, I8 default+exception, I10 tier labels |
 
-Reproduce with:
+<!-- benchmark:end -->
+
+Refresh this table with one command — it fetches live from CL4R1T4S,
+re-scores everything, and rewrites the block above in place:
+
+```bash
+python3 skills/opus-mind/scripts/benchmark.py --update-readme
+```
+
+Reproduce a single row:
 
 ```bash
 curl -s https://raw.githubusercontent.com/elder-plinius/CL4R1T4S/main/CURSOR/Cursor_Prompt.md \

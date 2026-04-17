@@ -78,15 +78,19 @@ dispatch_lint() {
         fix)         exec "$py" "$here/fix.py" "$@" ;;
         decode)      exec "$py" "$here/decode.py" "$@" ;;
         draft)       exec "$py" "$here/draft.py" "$@" ;;
+        seed)        exec "$py" "$here/seed.py" "$@" ;;
+        critic)      exec bash "$here/critic.sh" "$@" ;;
         self-audit)  exec "$py" "$here/audit.py" --self ;;
         help|--help|-h|"")
             echo "opus-mind lint — for builders (agent / system prompts)"
             echo
-            echo "  audit <path>                  score 11 invariants"
-            echo "  plan <path>                   required-primitive TODO"
-            echo "  fix <path> [--add NAMES]      rewrite / inject skeleton"
-            echo "  decode <path>                 label 12 primitives present"
-            echo "  self-audit                    audit this skill's SKILL.md"
+            echo "  audit <path>                    score 11 invariants"
+            echo "  plan <path>                     required-primitive TODO"
+            echo "  fix <path> [--add NAMES]        rewrite / inject skeleton"
+            echo "  decode <path>                   label 12 primitives present"
+            echo "  seed --type <name> [-o file]    emit a starter skeleton"
+            echo "  critic <path>                   audit → fix → re-audit loop"
+            echo "  self-audit                      informational — score SKILL.md"
             ;;
         *) echo "unknown lint subcommand: $sub" >&2; exit 2 ;;
     esac
@@ -132,6 +136,9 @@ case "$cmd" in
     decode)      exec "$py" "$here/decode.py" "$@" ;;
     draft)       exec "$py" "$here/draft.py" "$@" ;;
     symptom)     exec "$py" "$here/symptom_search.py" "$@" ;;
+    benchmark)   exec "$py" "$here/benchmark.py" "$@" ;;
+    seed)        exec "$py" "$here/seed.py" "$@" ;;
+    critic)      exec bash "$here/critic.sh" "$@" ;;
     crosscheck)
         # Emit the LLM crosscheck review prompt. Claude (in Claude Code)
         # applies it in-session; standalone users paste into any LLM.

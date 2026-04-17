@@ -1,0 +1,81 @@
+{
+  "$schema": "https://schemas.claude.com/skills/hooks/v1.json",
+  "$comment": [
+    "Lifecycle hooks for Claude Code, Cursor, and Codex runtimes.",
+    "These fire on the host IDE's native hook points and delegate to",
+    "the opus-mind Python helpers. No LLM synthesis happens here — ",
+    "hooks only EMIT audit data or block a tool call when a gate",
+    "configured elsewhere (.opus-mind.json) demands it.",
+    "",
+    "Every hook is a Bash one-liner that shells out to the scripts/",
+    "directory. If opus-mind is installed via install-skill.sh, the",
+    "path resolves through the ~/.claude/skills/opus-mind/ symlink.",
+    "",
+    "The host runtime decides what to do with a non-zero exit:",
+    "- Claude Code: PreToolUse non-zero blocks the tool call.",
+    "- Cursor:      errorOccurred non-zero surfaces in the sidebar.",
+    "- Codex:       request_exec non-zero aborts the session step."
+  ],
+
+  "claude-code": {
+    "PreToolUse": [
+      {
+        "match": {
+          "tool": "Edit",
+          "path_pattern": "(CLAUDE|AGENTS|GEMINI|SKILL)\\.md$|\\.cursorrules$|system-prompt.*\\.md$|^prompts/"
+        },
+        "command": "python3 $CLAUDE_PLUGIN_ROOT/scripts/audit.py --json \"$CLAUDE_FILE_PATH\" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(f\"[opus-mind pre-edit] {d[\\\"structural_health\\\"]} ({d[\\\"verdict\\\"]})\", file=sys.stderr)'",
+        "fail_on_exit_code": false,
+        "note": "Informs Claude of current score before it edits; never blocks."
+      }
+    ],
+    "PostToolUse": [
+      {
+        "match": {
+          "tool": "Edit",
+          "path_pattern": "(CLAUDE|AGENTS|GEMINI|SKILL)\\.md$|\\.cursorrules$"
+        },
+        "command": "python3 $CLAUDE_PLUGIN_ROOT/scripts/audit.py --json \"$CLAUDE_FILE_PATH\" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(f\"[opus-mind post-edit] {d[\\\"structural_health\\\"]} ({d[\\\"verdict\\\"]})\", file=sys.stderr)'",
+        "fail_on_exit_code": false,
+        "note": "Shows score delta after each edit so the user sees whether the change helped."
+      }
+    ],
+    "Stop": [
+      {
+        "match": { "when": "session_end" },
+        "command": "python3 $CLAUDE_PLUGIN_ROOT/scripts/audit.py --self --json > /dev/null",
+        "fail_on_exit_code": false,
+        "note": "Informational — runs self-audit on session exit, stores nothing."
+      }
+    ]
+  },
+
+  "cursor": {
+    "errorOccurred": [
+      {
+        "command": "python3 $OPUS_MIND_ROOT/scripts/symptom_search.py \"$CURSOR_ERROR_MESSAGE\" --json 2>/dev/null || true",
+        "note": "When Cursor surfaces a prompt-level failure, try matching it to a known primitive pointer. Fails gracefully."
+      }
+    ]
+  },
+
+  "codex": {
+    "request_exec_pre": [
+      {
+        "match": { "command_pattern": "^opus-mind " },
+        "command": "echo '[opus-mind] running from Codex session' >&2"
+      }
+    ]
+  },
+
+  "shared_env": {
+    "CLAUDE_PLUGIN_ROOT": {
+      "description": "Set automatically by Claude Code; points at the installed skill directory. Used by every hook above.",
+      "fallback": "$HOME/.claude/skills/opus-mind"
+    },
+    "OPUS_MIND_ROOT": {
+      "description": "Optional override for Cursor / Codex. Defaults to the Claude Code path.",
+      "fallback": "$HOME/.claude/skills/opus-mind"
+    }
+  }
+}
