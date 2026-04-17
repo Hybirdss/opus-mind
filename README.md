@@ -4,12 +4,15 @@ Claude's own system prompt, reverse-engineered into tools that audit yours.
 
 ```
 $ opus-mind audit CLAUDE.md
-score: 4/6
+score: 3/6
   [FAIL] I1_reduce_interpretation
-  [FAIL] I4_anti_narration
+  [FAIL] I2_no_rule_conflicts
+  [FAIL] I6_failure_modes_explicit
 
-  L23 [I1] Tier 1 slop: 'leverage'     fix → primitives/03-hard-numbers.md
-  L47 [I4] Narration: 'Let me check'   fix → primitives/08-anti-narration.md
+  -- [I1] hedge_density 0.42 > 0.25 (11 hedges / 26 directives)
+  -- [I1] number_density 0.04 < 0.10 (1 numbers / 26 directives)
+  -- [I2] 26 directives, 0 ladders        fix → primitives/02-decision-ladders.md
+  -- [I6] 0 consequences, need ≥ 2        fix → techniques/04-consequence-statement.md
 ```
 
 ```
@@ -137,14 +140,43 @@ Every claim in this README is backed by tests, fixtures, or both.
 
 ```
 $ python3 -m pytest tests/ skills/opus-mind/tests/ -q
-.................................. 32 passed
+96 passed, 4 skipped
 ```
 
+- **The Opus 4.7 source itself scores 6/6.** `tests/test_dogfood.py` fetches the CL4R1T4S mirror on every run and asserts `score == 6/6`. If the regex ever drifts away from the source, the dogfood gate breaks first. This is non-negotiable: if the auditor doesn't pass the document it was derived from, the auditor is wrong.
 - The skill itself (`skills/opus-mind/SKILL.md`) scores 6/6. Regression-tested on every pytest run.
-- 5 golden-good fixtures in [`tests/fixtures/good/`](./tests/fixtures/good/) must stay at 6/6.
-- 12 golden-bad fixtures in [`tests/fixtures/bad/`](./tests/fixtures/bad/) must each fail exactly one known invariant.
-- If you change the regex list in `audit.py`, the fixtures tell you what broke.
+- 5 golden-good fixtures in [`tests/fixtures/good/`](./tests/fixtures/good/) stay at 6/6.
+- 13 golden-bad fixtures in [`tests/fixtures/bad/`](./tests/fixtures/bad/) each fail exactly one known invariant.
+- 2 stylebook fixtures in [`tests/fixtures/stylebook/`](./tests/fixtures/stylebook/) verify that opt-in `--stylebook` mode surfaces the author's anti-slop list without polluting the primary score.
 - The pre-commit hook is installed on this repo's `.git/hooks/pre-commit`. Commits that would regress the analysis fail locally before push.
+
+### External prompt scores (snapshot)
+
+Under the pure-Opus-4.7 auditor:
+
+| Source | Score | What's missing |
+|---|---|---|
+| Claude Opus 4.7 (CL4R1T4S) | **6/6** | — (the canon) |
+| OpenAI Codex | 5/6 | I2 (no explicit decision ladder for its size) |
+| Cursor 2.0 | 3/6 | I1 number density, I2 ladder, I6 consequence |
+| ChatGPT-5 (Aug 2025) | 1/6 | I1, I2, I3, I5, I6 |
+
+These are findings, not verdicts. A 3/6 score means the prompt is not written in the 12-primitive style; it does not mean the product is bad.
+
+## Pure Opus 4.7 grounding
+
+Every signal set in `audit.py` is traceable to specific lines of the CL4R1T4S mirror:
+
+| Invariant | Primitive | Source lines |
+|---|---|---|
+| I1 reduce interpretation surface | 03 hard-numbers | L664 (15-word limit), L620 (tool-call scaling) |
+| I2 eliminate rule conflicts | 02 decision-ladders | L515–L537 (request_evaluation_checklist) |
+| I3 catch motivated reasoning | 09 reframe-as-signal | L33 (reframing IS the refusal signal) |
+| I4 keep internals private | 08 anti-narration | L536, L560 (two anti-narration rules) |
+| I5 calibrate through examples | 06 example + rationale | L710–L750 (copyright examples with rationale) |
+| I6 make failure modes explicit | technique 04 | L753–L759 (consequence block) |
+
+The author's personal anti-slop word list (`delve`, `utilize`, `leverage`, etc.) is **not** part of the primary score — the Opus 4.7 source itself uses several of those words. Those preferences live in [`stylebook.py`](./skills/opus-mind/scripts/stylebook.py) and surface only under `audit.py --stylebook`. The separation keeps "what the source teaches" distinct from "what the author prefers."
 
 ---
 

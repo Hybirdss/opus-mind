@@ -41,14 +41,19 @@ def test_false_positive_fixture_i1_passes():
 
 
 def test_false_positive_property_not_flagged_as_proper():
+    # Default audit must not surface the stylebook tier2 list at all.
     text = "Property management is the user's job.\n"
     r = audit.audit_text(text)
-    assert r.metrics["slop_tier2_no_number"] == 0
+    assert "stylebook_tier2_no_number" not in r.metrics
+    # Under --stylebook, word-boundary must still prevent "proper" matching "property".
+    r_style = audit.audit_text(text, stylebook=True)
+    assert r_style.metrics.get("stylebook_tier2_no_number", 0) == 0
 
 
 def test_false_positive_adj_near_percent_not_flagged():
+    # Under --stylebook, a number in the same line suppresses the Tier-2 flag.
     text = "Handles 99% uptime under a robust design.\n"
-    r = audit.audit_text(text)
+    r = audit.audit_text(text, stylebook=True)
     proper_hits = [f for f in r.findings if "robust" in f.snippet.lower()]
     assert len(proper_hits) == 0
 
@@ -299,9 +304,12 @@ def test_calibration_files_match_expected_metrics():
     checked = 0
     failures: list[str] = []
     for entry in entries:
-        path = REPO_ROOT / entry["path"]
+        local_path = entry.get("path")
+        if not local_path:
+            # Externally hosted (see fetch_url). Dogfood test covers it.
+            continue
+        path = REPO_ROOT / local_path
         if not path.exists():
-            # Source may be externally hosted (CL4R1T4S). Skip, do not fail.
             continue
         checked += 1
         r = audit.audit(path)

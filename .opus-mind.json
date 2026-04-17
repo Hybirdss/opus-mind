@@ -20,16 +20,19 @@
   ],
   "calibration_files": [
     {
-      "path": "source/opus-4.7.txt",
+      "path_hint": "CL4R1T4S mirror of ANTHROPIC/Claude-Opus-4.7.txt",
+      "fetch_url": "https://raw.githubusercontent.com/elder-plinius/CL4R1T4S/main/ANTHROPIC/Claude-Opus-4.7.txt",
+      "expected_score": 6,
       "expected_metrics": {
-        "slop_tier1": {"max": 0},
         "narration": {"max": 0},
         "numeric_constraints": {"min": 30},
         "ladder_signals": {"min": 3},
         "reframe_signals": {"min": 1},
-        "consequences": {"min": 10}
+        "consequences": {"min": 10},
+        "hedge_density": {"max": 0.25},
+        "number_density": {"min": 0.10}
       },
-      "note": "This is our reverse-engineering source. We did NOT calibrate regexes by fitting to this file — we wrote regexes from the distilled principles in primitives/. A mismatch here is either (a) our regex is wrong, (b) source deviates from a principle we over-generalized. Both require human review. This is a calibration snapshot, not proof of imperfection."
+      "note": "Canonical reverse-engineering source. The primary 6-invariant score MUST be 6/6 here — it is the floor that defines our thresholds. If this regresses, either (a) our regex broke, (b) CL4R1T4S drifted, or (c) we over-generalized a primitive. All three cases require human review. Stylebook mode (--stylebook) intentionally fails this file: the author's anti-slop list is not grounded in the source."
     }
   ],
   "hook_patterns": [

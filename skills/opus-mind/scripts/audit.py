@@ -3,20 +3,24 @@
 opus-mind audit.py — deterministic system-prompt scorer.
 
 Usage:
-    python3 audit.py <prompt.md>           # full report
-    python3 audit.py <prompt.md> --json    # machine-readable
-    python3 audit.py --self                # audit this skill's own SKILL.md
+    python3 audit.py <prompt.md>              # full report
+    python3 audit.py <prompt.md> --json       # machine-readable
+    python3 audit.py <prompt.md> --stylebook  # add author's anti-slop list
+    python3 audit.py --self                   # audit this skill's own SKILL.md
 
-Scores a prompt against the 6 invariants from methodology/README.md:
-    I1 reduce interpretation surface
-    I2 eliminate rule conflicts
-    I3 catch motivated reasoning (only when refusal content present)
-    I4 keep internals private
-    I5 calibrate through examples (only when examples present)
-    I6 make failure modes explicit
+Grounding:
+    Every signal set below is traceable to a specific line range in the
+    Opus 4.7 source (CL4R1T4S mirror of Claude-Opus-4.7.txt). An author
+    may also have opinionated anti-slop preferences; those live in
+    `stylebook.py` and are opt-in via --stylebook so they don't pollute
+    the Opus-4.7-grounded score.
 
-Not heuristic vibes. Every check is a regex or count with an explicit
-threshold. Output cites the failing lines so the user can fix.
+    I1 reduce interpretation surface   — primitive 03, source L664 (15-word limit as numeric constant)
+    I2 eliminate rule conflicts        — primitive 02, source L515-L537 (request_evaluation_checklist)
+    I3 catch motivated reasoning       — primitive 09, source L33 (reframe as refusal signal)
+    I4 keep internals private          — primitive 08, source L536, L560 (anti-narration)
+    I5 calibrate through examples      — primitive 06, source L710-L750 (copyright examples with rationale)
+    I6 make failure modes explicit     — technique 04, source L753-L759 (consequence block)
 """
 
 from __future__ import annotations
@@ -29,50 +33,45 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
-# Tier 1 verbs — inflection-tolerant (utilize → utilizes, utilized, utilizing).
-SLOP_TIER1_STEM = [
-    "delve", "utilize", "leverage", "facilitate", "encompass",
-    "catalyze",
-]
+# ---------------------------------------------------------------------------
+# Opus 4.7-grounded signals only. Every item below is backed by a source line
+# reference or a structural feature of the Opus 4.7 prompt.
+# ---------------------------------------------------------------------------
 
-# Tier 1 exact — these appear bare; no inflection needed.
-SLOP_TIER1_EXACT = [
-    "multifaceted", "tapestry", "testament", "paradigm", "synergy",
-    "holistic", "nuanced", "realm", "landscape", "myriad", "plethora",
-]
-
-# Tier 2 verbs — inflection-tolerant.
-SLOP_TIER2_STEM = [
-    "streamline", "empower", "foster", "elevate", "resonate",
-]
-
-# Tier 2 exact — bare adjectives and nouns.
-# Words like "proper" and "reasonable" removed: too ambiguous in English
-# (legal/philosophy uses — "proper noun", "reasonable doubt" — are legitimate).
-# Prefer false negative over false positive on ambiguous words.
-SLOP_TIER2_EXACT = [
-    "robust", "comprehensive", "seamless", "cutting-edge", "innovative",
-    "pivotal", "intricate", "cornerstone", "effective",
-    "efficient", "appropriate", "optimal", "enhance",
-]
-
-HEDGES = [
-    r"\bgenerally\b", r"\bprobably\b", r"\bmight\b", r"\bshould work\b",
-    r"\bwhen appropriate\b", r"\bcarefully\b", r"\boften\b",
-    r"\busually\b", r"\bsometimes\b", r"\btypically\b", r"\bideally\b",
-    r"\broughly\b", r"\bI think\b", r"\bmay be\b",
-    r"\b아마\b", r"것 같", r"~일 수", r"~할 수도",
-]
-
+# Narration phrases explicitly cited in Opus 4.7 as forbidden preambles.
+# Source: line 536 (`"per my guidelines"`) and line 560 (`"let me load the
+# diagram module"`). Every phrase here appears in the source as a NEGATIVE
+# example — a phrase Claude should NOT emit.
 NARRATION = [
-    r"\bLet me\b", r"\bLet's dive\b", r"\bI'll check\b",
-    r"\bI'll analyze\b", r"\bI'll think\b", r"\bFirst, I'll\b",
-    r"\bper my guidelines\b", r"\bI'll route\b", r"\bAllow me to\b",
+    r"\blet me\b",              # L560: "No 'let me load the diagram module.'"
+    r"\bper my guidelines\b",   # L536: "Claude doesn't say 'per my guidelines'"
+]
+
+# Hedge words that soften rules without adding a numeric constraint.
+# Opus 4.7 does not publish a hedge blacklist; this list is the minimal
+# intersection of (a) common English rule-softeners the prompt itself avoids
+# when stating bright-line rules (see line 664 "15 words" vs "short quotes")
+# and (b) words whose primary semantic job is to weaken a directive.
+#
+# NOTE: Opus 4.7 itself uses "generally", "often", "typically" in narrative
+# passages. That is why the I1 threshold is a ratio, not an absolute count.
+HEDGES = [
+    r"\bprobably\b",
+    r"\bmight\b",
+    r"\bmay be\b",
+    r"\bshould work\b",
+    r"\bI think\b",
+    r"\bwhen appropriate\b",
+    r"\bif possible\b",
+    r"\bperhaps\b",
 ]
 
 LADDER_SIGNALS = [
+    # Source line 515 opens the canonical decision-ladder block:
+    # "Before producing any visual output, Claude walks these steps in
+    # order, stopping at the first match." Patterns mirror that wording.
     r"Step\s*0\b", r"Step\s*1\b", r"first[- ]match[- ]wins",
-    r"Stop at the first match", r"Stops at the first match",
+    r"stop(?:s|ping)? at (?:the )?first match",
 ]
 
 REFRAME_SIGNALS = [
@@ -146,13 +145,80 @@ class Report:
         return f"{passed}/{total}"
 
 
+# Negators that, when present on the same line as a match, indicate the
+# match is being FORBIDDEN — not practiced. "Claude doesn't say 'let me'"
+# should not flag "let me" as narration.
+NEGATOR_PATTERNS = [
+    r"\bdoes not\b", r"\bdo not\b", r"\bdon't\b", r"\bdoesn't\b",
+    r"\bnever\b", r"\bno longer\b", r"\bavoid(?:s|ing|ed)?\b",
+    r"\bforbid(?:s|den|ding)?\b", r"\bprohibit(?:s|ed|ing)?\b",
+    r"\brefuse(?:s|d|ing)?\b", r"\breject(?:s|ed|ing)?\b",
+    r"\bwon't\b", r"\bwill not\b", r"\bmust not\b", r"\bshould not\b",
+    r"\bcannot\b", r"\bcan't\b",
+    r"^\s*-\s*no\b", r"^\s*No\s+[\"']",     # bullet "No 'X'"
+    r"facilitates? (?:grooming|harm|illegal|abuse|bypass)",   # harm-list phrasing
+    r"not (?:to |going to )?(?:facilitate|enable|help)",
+]
+_NEGATOR_RE = re.compile("|".join(NEGATOR_PATTERNS), re.IGNORECASE)
+
+# Inline quoted counterexamples: `"let me..."` or `'per my guidelines'`.
+# Anything inside matched quotes on a line is treated as illustrative,
+# not practiced. Captures `"..."`, `'...'`, and backtick spans.
+_QUOTE_SPAN_RE = re.compile(
+    r'"[^"\n]{0,200}?"'       # double-quoted span
+    r"|'[^'\n]{0,200}?'"       # single-quoted span
+    r"|`[^`\n]{0,200}?`"       # backtick span
+)
+
+
+def _has_negator_context(line: str) -> bool:
+    """True when the line scopes matches as forbidden, not practiced."""
+    return bool(_NEGATOR_RE.search(line))
+
+
+def _match_inside_quotes(line: str, match_start: int, match_end: int) -> bool:
+    """True when the [match_start, match_end] span is inside any quoted span."""
+    for m in _QUOTE_SPAN_RE.finditer(line):
+        if m.start() < match_start and m.end() > match_end:
+            return True
+    return False
+
+
 def _iter_findings(
-    lines: list[str], patterns: Iterable[str], *, flags: int = 0
+    lines: list[str], patterns: Iterable[str], *, flags: int = 0,
 ) -> list[tuple[int, str, str]]:
+    # Presence-only scan. Used for signals whose role is detection, not
+    # violation: rationale markers, ladder signals, reframe clauses,
+    # consequence phrases, refusal topics, example markers. A match still
+    # counts even if the line is negated — "Claude declines requests…"
+    # IS refusal-topic content we want to count.
     hits: list[tuple[int, str, str]] = []
+    pat_list = list(patterns)
     for idx, line in enumerate(lines, start=1):
-        for pat in patterns:
+        for pat in pat_list:
             for m in re.finditer(pat, line, flags=flags):
+                hits.append((idx, line.rstrip(), m.group(0)))
+    return hits
+
+
+def _iter_violations(
+    lines: list[str], patterns: Iterable[str], *, flags: int = 0,
+) -> list[tuple[int, str, str]]:
+    # Violation scan. Used for signals that indicate the prompt PRACTICES
+    # the bad behavior: slop words, hedges, narration phrases. A line that
+    # forbids the bad behavior ("Claude does not say 'let me'") or that
+    # cites the bad behavior as a counterexample inside quotes is NOT a
+    # violation — suppress those matches.
+    hits: list[tuple[int, str, str]] = []
+    pat_list = list(patterns)
+    for idx, line in enumerate(lines, start=1):
+        negated = _has_negator_context(line)
+        for pat in pat_list:
+            for m in re.finditer(pat, line, flags=flags):
+                if negated:
+                    continue
+                if _match_inside_quotes(line, m.start(), m.end()):
+                    continue
                 hits.append((idx, line.rstrip(), m.group(0)))
     return hits
 
@@ -160,13 +226,13 @@ def _iter_findings(
 def _stem_hits(lines: list[str], words: Iterable[str]) -> list[tuple[int, str, str]]:
     # Inflection-tolerant: utilize → utilizes, utilized, utilizing (1-3 letter suffix).
     patterns = [rf"\b{re.escape(w)}\w{{0,3}}\b" for w in words]
-    return _iter_findings(lines, patterns, flags=re.IGNORECASE)
+    return _iter_violations(lines, patterns, flags=re.IGNORECASE)
 
 
 def _exact_hits(lines: list[str], words: Iterable[str]) -> list[tuple[int, str, str]]:
     # Exact word boundary — no inflection.
     patterns = [rf"\b{re.escape(w)}\b" for w in words]
-    return _iter_findings(lines, patterns, flags=re.IGNORECASE)
+    return _iter_violations(lines, patterns, flags=re.IGNORECASE)
 
 
 def _check_xml_balance(lines: list[str]) -> tuple[int, list[tuple[int, str]]]:
@@ -195,25 +261,20 @@ def _check_xml_balance(lines: list[str]) -> tuple[int, list[tuple[int, str]]]:
     return coverage_lines, unmatched
 
 
-def audit(path: Path) -> Report:
+def audit(path: Path, stylebook: bool = False) -> Report:
     text = path.read_text(encoding="utf-8")
-    return audit_text(text, source_label=str(path))
+    return audit_text(text, source_label=str(path), stylebook=stylebook)
 
 
-def audit_text(text: str, source_label: str = "<text>") -> Report:
+def audit_text(
+    text: str, source_label: str = "<text>", stylebook: bool = False
+) -> Report:
     lines = text.splitlines()
     report = Report(path=source_label, line_count=len(lines))
 
     # --- raw counts ---
-    slop1 = _stem_hits(lines, SLOP_TIER1_STEM) + _exact_hits(lines, SLOP_TIER1_EXACT)
-    slop2 = _stem_hits(lines, SLOP_TIER2_STEM) + _exact_hits(lines, SLOP_TIER2_EXACT)
-    slop2_flagged = [
-        (ln, snip, match)
-        for (ln, snip, match) in slop2
-        if not NUMBER_CONSTRAINT.search(snip)
-    ]
-    hedges = _iter_findings(lines, HEDGES, flags=re.IGNORECASE)
-    narration = _iter_findings(lines, NARRATION, flags=re.IGNORECASE)
+    hedges = _iter_violations(lines, HEDGES, flags=re.IGNORECASE)
+    narration = _iter_violations(lines, NARRATION, flags=re.IGNORECASE)
     ladder = _iter_findings(lines, LADDER_SIGNALS, flags=re.IGNORECASE)
     reframe = _iter_findings(lines, REFRAME_SIGNALS, flags=re.IGNORECASE)
     consequences = _iter_findings(lines, CONSEQUENCE_SIGNALS, flags=re.IGNORECASE)
@@ -235,14 +296,46 @@ def audit_text(text: str, source_label: str = "<text>") -> Report:
     number_density = (
         len(numbers) / max(len(directives), 1) if directives else 0.0
     )
-    xml_coverage_pct = (
-        xml_coverage / max(len(lines) - xml_coverage, 1)
+    hedge_density = (
+        len(hedges) / max(len(directives), 1) if directives else 0.0
     )
 
+    # Optional: author's anti-slop stylebook. Opt-in via --stylebook.
+    # Not grounded in Opus 4.7 — kept separate so the primary score
+    # reflects the source-derived principles only.
+    slop_metrics = {}
+    if stylebook:
+        try:
+            from stylebook import SLOP_TIER1_STEM, SLOP_TIER1_EXACT, \
+                SLOP_TIER2_STEM, SLOP_TIER2_EXACT
+        except ImportError:
+            SLOP_TIER1_STEM = SLOP_TIER1_EXACT = []
+            SLOP_TIER2_STEM = SLOP_TIER2_EXACT = []
+        slop1 = _stem_hits(lines, SLOP_TIER1_STEM) + _exact_hits(lines, SLOP_TIER1_EXACT)
+        slop2 = _stem_hits(lines, SLOP_TIER2_STEM) + _exact_hits(lines, SLOP_TIER2_EXACT)
+        slop2_flagged = [
+            (ln, snip, match)
+            for (ln, snip, match) in slop2
+            if not NUMBER_CONSTRAINT.search(snip)
+        ]
+        slop_metrics = {
+            "stylebook_tier1": len(slop1),
+            "stylebook_tier2_no_number": len(slop2_flagged),
+        }
+        for ln, snip, match in slop1:
+            report.findings.append(Finding(
+                "stylebook", ln, snip, f"Tier 1 slop word: {match!r}",
+                "skills/opus-mind/scripts/stylebook.py",
+            ))
+        for ln, snip, match in slop2_flagged:
+            report.findings.append(Finding(
+                "stylebook", ln, snip, f"Adj without number: {match!r}",
+                "skills/opus-mind/scripts/stylebook.py",
+            ))
+
     report.metrics = {
-        "slop_tier1": len(slop1),
-        "slop_tier2_no_number": len(slop2_flagged),
         "hedges": len(hedges),
+        "hedge_density": round(hedge_density, 3),
         "narration": len(narration),
         "ladder_signals": len(ladder),
         "reframe_signals": len(reframe),
@@ -255,28 +348,40 @@ def audit_text(text: str, source_label: str = "<text>") -> Report:
         "number_density": round(number_density, 3),
         "xml_inside_lines": xml_coverage,
         "xml_unmatched": len(xml_unmatched),
+        **slop_metrics,
     }
 
     # --- I1: reduce interpretation surface ---
-    i1_pass = (
-        report.metrics["slop_tier1"] == 0
-        and report.metrics["slop_tier2_no_number"] == 0
-        and report.metrics["hedges"] <= 2
+    # Primitive 03 (hard numbers). The Opus 4.7 source uses hedges and
+    # adjectives too — what it avoids is *unbacked rule-softening*. We
+    # measure (a) hedge density and (b) numeric-constraint density relative
+    # to directive count. Opus 4.7 itself measures hedge_density ≈ 0.16,
+    # number_density ≈ 0.20. Thresholds are set above the source floor so
+    # the source passes its own bar.
+    i1_hedge_ok = report.metrics["hedge_density"] <= 0.25 or len(directives) < 3
+    i1_number_ok = (
+        report.metrics["number_density"] >= 0.10
+        or len(directives) < 3
     )
+    i1_pass = i1_hedge_ok and i1_number_ok
     report.pass_flags["I1_reduce_interpretation"] = i1_pass
-    for ln, snip, match in slop1:
+    if not i1_hedge_ok:
         report.findings.append(Finding(
-            "I1", ln, snip, f"Tier 1 slop word: {match!r}",
+            "I1", 0, "",
+            f"hedge_density {report.metrics['hedge_density']:.2f} > 0.25 "
+            f"({len(hedges)} hedges / {len(directives)} directives)",
             "references/primitives/03-hard-numbers.md",
         ))
-    for ln, snip, match in slop2_flagged:
+    if not i1_number_ok:
         report.findings.append(Finding(
-            "I1", ln, snip, f"Adj without number: {match!r}",
+            "I1", 0, "",
+            f"number_density {report.metrics['number_density']:.2f} < 0.10 "
+            f"({len(numbers)} numbers / {len(directives)} directives)",
             "references/primitives/03-hard-numbers.md",
         ))
-    for ln, snip, match in hedges[2:]:
+    for ln, snip, match in hedges[:10]:
         report.findings.append(Finding(
-            "I1", ln, snip, f"Hedge word: {match!r}",
+            "I1_hint", ln, snip, f"Hedge word: {match!r}",
             "references/primitives/03-hard-numbers.md",
         ))
 
@@ -501,24 +606,28 @@ def main() -> int:
         default="claude-opus-4-7",
         help="model to use for --crosscheck exec (default: claude-opus-4-7)",
     )
+    parser.add_argument(
+        "--stylebook", action="store_true",
+        help="opt-in: also apply the author's anti-slop wordlist (not Opus 4.7-grounded)",
+    )
     args = parser.parse_args()
 
     if args.self:
         target = Path(__file__).resolve().parent.parent / "SKILL.md"
-        report = audit(target)
+        report = audit(target, stylebook=args.stylebook)
     elif args.path == "-":
         text = sys.stdin.read()
         if not text.strip():
             print("error: stdin is empty", file=sys.stderr)
             return 2
-        report = audit_text(text, source_label="<stdin>")
+        report = audit_text(text, source_label="<stdin>", stylebook=args.stylebook)
     elif args.path:
         target = Path(args.path)
         if not target.exists():
             print(f"error: {target} not found", file=sys.stderr)
             return 2
         try:
-            report = audit(target)
+            report = audit(target, stylebook=args.stylebook)
         except UnicodeDecodeError:
             print(f"error: {target} is not valid UTF-8 text", file=sys.stderr)
             return 2

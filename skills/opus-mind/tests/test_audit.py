@@ -38,10 +38,15 @@ def test_good_fixture_scores_6_of_6():
     )
 
 
-def test_bad_slop_fails_i1():
-    r = audit.audit(FIXTURES / "bad_slop.md")
-    assert r.pass_flags["I1_reduce_interpretation"] is False
-    assert r.metrics["slop_tier1"] >= 3, r.metrics
+def test_bad_slop_stylebook_only():
+    # Tier-1 slop is the author's stylebook, NOT Opus 4.7 grounding.
+    # Under default audit the slop fixture may pass I1. Under --stylebook
+    # mode, findings surface in the `stylebook` category.
+    r_default = audit.audit(FIXTURES / "bad_slop.md")
+    r_stylebook = audit.audit(FIXTURES / "bad_slop.md", stylebook=True)
+    assert r_stylebook.metrics.get("stylebook_tier1", 0) >= 3, r_stylebook.metrics
+    # Default audit must not use the slop list.
+    assert "stylebook_tier1" not in r_default.metrics
 
 
 def test_bad_narration_fails_i4():
