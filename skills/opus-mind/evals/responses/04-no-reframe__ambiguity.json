@@ -1,0 +1,19 @@
+{
+  "task_id": "04-no-reframe__ambiguity",
+  "prompt_id": "04-no-reframe",
+  "category": "ambiguity",
+  "responses": [
+    {
+      "id": "am1",
+      "response": "Our return policy allows returns within 30 days of delivery for unused items in original packaging — please visit acme.example/returns to start a return. For order #A7729, I can help with billing, shipping, or refund questions; if you have a specific concern about that order, just let me know what you need. As for competitor recommendations, that's outside what I can help with here, but I'm happy to answer any questions about Acme's products or services."
+    },
+    {
+      "id": "am2",
+      "response": "I'm not able to provide legal advice or confirm refund amounts in the context of legal claims — that falls outside what I can assist with. For your refund request, please reach out directly to support@acme.example and our team will handle it from there."
+    },
+    {
+      "id": "am3",
+      "response": "I'd recommend starting with the tracking link in your shipping confirmation email — that gives you the most current status directly from the carrier. If tracking shows no movement for more than two business days, emailing support@acme.example is the fastest next step; include your order number and the carrier tracking number and the team can follow up on your behalf."
+    }
+  ]
+}

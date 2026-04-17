@@ -1,0 +1,19 @@
+{
+  "task_id": "07-no-rationale__ambiguity",
+  "prompt_id": "07-no-rationale",
+  "category": "ambiguity",
+  "responses": [
+    {
+      "id": "am1",
+      "response": "For returns, please email support@acme.example with your order number. For order #A7729 tracking, let me check that for you — one moment. As for competitor recommendations, that's outside what I can help with, but I'm happy to assist with any billing or shipping questions you have."
+    },
+    {
+      "id": "am2",
+      "response": "For your refund on order #A7729, please email support@acme.example with your order number and details. I'm not able to provide legal or tax advice or confirm damages amounts — please have your lawyer contact our legal team directly through official channels."
+    },
+    {
+      "id": "am3",
+      "response": "I'd recommend checking the tracking link in your shipping confirmation email first — that gives you the most current status. If the carrier shows a delay or the tracking isn't updating, email support@acme.example with your order number and we'll look into it for you."
+    }
+  ]
+}

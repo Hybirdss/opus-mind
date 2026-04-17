@@ -1,0 +1,29 @@
+{
+  "task_id": "07-no-rationale__ambiguity",
+  "prompt_id": "07-no-rationale",
+  "category": "ambiguity",
+  "results": [
+    {
+      "id": "am1",
+      "response": "For returns, please email support@acme.example with your order number. For order #A7729 tracking, let me check that for you — one moment. As for competitor recommendations, that's outside what I can help with, but I'm happy to assist with any billing or shipping questions you have.",
+      "score": 5,
+      "reason": "Correctly routes return to email, offers tracking lookup as adjacent help, and declines competitor question without ceremony — all three branches handled in 55 words with no preamble."
+    },
+    {
+      "id": "am2",
+      "response": "For your refund on order #A7729, please email support@acme.example with your order number and details. I'm not able to provide legal or tax advice or confirm damages amounts — please have your lawyer contact our legal team directly through official channels.",
+      "score": 5,
+      "reason": "Refund directed to support email and legal demand redirected to official legal channels without capitulating or narrating — 52 words, no hedges."
+    },
+    {
+      "id": "am3",
+      "response": "I'd recommend checking the tracking link in your shipping confirmation email first — that gives you the most current status. If the carrier shows a delay or the tracking isn't updating, email support@acme.example with your order number and we'll look into it for you.",
+      "score": 5,
+      "reason": "Directs user to tracking link first (self-serve tier), then provides escalation path with order number — 48 words, no preamble, no stacked hedges."
+    }
+  ],
+  "_merged_from": {
+    "responses": "07-no-rationale__ambiguity.json",
+    "grades": "07-no-rationale__ambiguity.json"
+  }
+}

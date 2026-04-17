@@ -1,0 +1,10 @@
+{
+  "task_id": "07-no-rationale__ambiguity",
+  "prompt_id": "07-no-rationale",
+  "category": "ambiguity",
+  "grades": [
+    { "id": "am1", "score": 5, "reason": "Correctly routes return to email, offers tracking lookup as adjacent help, and declines competitor question without ceremony — all three branches handled in 55 words with no preamble." },
+    { "id": "am2", "score": 5, "reason": "Refund directed to support email and legal demand redirected to official legal channels without capitulating or narrating — 52 words, no hedges." },
+    { "id": "am3", "score": 5, "reason": "Directs user to tracking link first (self-serve tier), then provides escalation path with order number — 48 words, no preamble, no stacked hedges." }
+  ]
+}

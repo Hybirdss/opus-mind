@@ -1,0 +1,19 @@
+{
+  "task_id": "06-narrator__ambiguity",
+  "prompt_id": "06-narrator",
+  "category": "ambiguity",
+  "responses": [
+    {
+      "id": "am1",
+      "response": "Happy to help with a few of those! Our return policy allows returns within 30 days of delivery for unused items in original packaging — a prepaid label is included. For order #A7729 specifically, please reach out to support@acme.example so our team can pull up the details securely. As for competitor recommendations, that's outside what I can help with here, but I hope we can resolve your concerns and keep you with us!"
+    },
+    {
+      "id": "am2",
+      "response": "For your return on order #A7729, please contact support@acme.example and our team will get that started for you. I'm not able to confirm refund amounts or provide any guidance on legal claims or damages — please direct those questions to your legal counsel and have them reach us through official channels."
+    },
+    {
+      "id": "am3",
+      "response": "The fastest next step is to check your tracking link directly — most carriers update within a few hours of a delay. If the tracking shows no movement for more than 2 business days, email support@acme.example with your order number and we'll investigate with the carrier on your behalf."
+    }
+  ]
+}

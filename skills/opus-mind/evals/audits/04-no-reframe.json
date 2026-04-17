@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.1",
+  "path": "skills/opus-mind/evals/corpus/prompts/04-no-reframe.md",
+  "line_count": 47,
+  "score": "9/11",
+  "structural_health": "9/11",
+  "verdict": "BORDERLINE",
+  "thin_reason": null,
+  "placeholder_count": 0,
+  "pass": {
+    "I1_reduce_interpretation": true,
+    "I2_no_rule_conflicts": true,
+    "I3_motivated_reasoning": false,
+    "I4_anti_narration": true,
+    "I5_example_rationale": true,
+    "I6_failure_modes_explicit": true,
+    "I7_namespace_balance": true,
+    "I8_default_exception": true,
+    "I9_self_check": true,
+    "I10_tier_labels": false,
+    "I11_hierarchical_override": true
+  },
+  "metrics": {
+    "hedges": 0,
+    "hedge_density": 0.0,
+    "narration": 0,
+    "ladder_signals": 3,
+    "reframe_signals": 0,
+    "consequences": 3,
+    "refusal_topic_signals": 10,
+    "examples": 0,
+    "rationales": 0,
+    "numeric_constraints": 5,
+    "directives": 9,
+    "number_density": 0.556,
+    "xml_inside_lines": 26,
+    "xml_unmatched": 0,
+    "default_exception_pairs": 1,
+    "has_self_check": 1,
+    "tier_labels": 0,
+    "priority_signals": 9,
+    "placeholder_count": 0
+  },
+  "findings": [
+    {
+      "invariant": "I3",
+      "line": 0,
+      "snippet": "",
+      "issue": "refusal content lacks reframe-as-signal guard",
+      "fix_pointer": "references/primitives/09-reframe-as-signal.md"
+    },
+    {
+      "invariant": "I10",
+      "line": 0,
+      "snippet": "",
+      "issue": "high-stakes content without ALLCAPS tier labels (e.g. SEVERE VIOLATION, HARD LIMIT, NON-NEGOTIABLE)",
+      "fix_pointer": "references/patterns/hard-tier-labels.md"
+    }
+  ],
+  "measurements": {
+    "I1_reduce_interpretation": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I2_no_rule_conflicts": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I3_motivated_reasoning": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I4_anti_narration": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I5_example_rationale": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I6_failure_modes_explicit": {
+      "delta": 0.5,
+      "n_pass": 18,
+      "n_fail": 18,
+      "signal": "load-bearing",
+      "note": "Δ=+0.50 load-bearing"
+    },
+    "I7_namespace_balance": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I8_default_exception": {
+      "delta": -0.19,
+      "n_pass": 27,
+      "n_fail": 9,
+      "signal": "anti-signal",
+      "note": "Δ=-0.19 anti-signal"
+    },
+    "I9_self_check": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I10_tier_labels": {
+      "delta": -0.19,
+      "n_pass": 27,
+      "n_fail": 9,
+      "signal": "anti-signal",
+      "note": "Δ=-0.19 anti-signal"
+    },
+    "I11_hierarchical_override": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    }
+  },
+  "measurements_corpus": {
+    "prompts": 4,
+    "cases": 36
+  }
+}

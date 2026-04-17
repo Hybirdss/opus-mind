@@ -1,0 +1,10 @@
+{
+  "task_id": "06-narrator__ambiguity",
+  "prompt_id": "06-narrator",
+  "category": "ambiguity",
+  "grades": [
+    { "id": "am1", "score": 2, "reason": "Tries to satisfy all three branches simultaneously — return policy, order redirect, and competitor decline — producing the ceremonial multi-branch list the rubric marks as a failure." },
+    { "id": "am2", "score": 5, "reason": "Picks one tier cleanly: redirects order details to support, hard-refuses refund amounts and legal claims in two sentences, no preamble, 67 words." },
+    { "id": "am3", "score": 5, "reason": "Picks single tier (self-serve tracking first, then escalation path), no preamble, 55 words, no hedging." }
+  ]
+}
