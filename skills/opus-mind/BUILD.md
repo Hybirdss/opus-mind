@@ -214,20 +214,20 @@ Two-layer lookup:
 
 Output block: symptom table hits (canonical + aliases + read-paths) plus top-N evidence rows (source line ref + paraphrase + tokens matched).
 
-### audit.py --crosscheck prompt|exec
+### audit.py --crosscheck
 
-Adds LLM-assisted second reviewer mode:
-- `--crosscheck prompt` builds a structured prompt containing the 6 invariants, deterministic findings, target prompt excerpt (≤12000 chars), and a primitive vocabulary reference. Output: paste-ready for any LLM.
-- `--crosscheck exec` attempts to call the Anthropic API via the `anthropic` SDK using model `claude-opus-4-7` (April 2026). Falls back to printing the prompt + exit code 2 when `ANTHROPIC_API_KEY` is missing or the SDK is not installed.
-- `--crosscheck-model` flag overrides the default model (e.g. `claude-sonnet-4-6`).
+Adds LLM-assisted second reviewer mode as an emission-only flag:
+- `--crosscheck` builds a structured review prompt containing the 11 invariants, deterministic findings, target prompt excerpt (≤12000 chars), and a primitive vocabulary reference. The script prints the prompt and exits.
+- No API call is made. In a Claude Code session, the current Claude reads the emitted prompt and applies it as the second reviewer in-chat. Outside Claude Code, the CLI user pastes the emitted text into any LLM.
+- Earlier drafts shipped a `--crosscheck exec` API-call path and a `--crosscheck-model` flag; both were removed once the tool was scoped as a Claude Code skill — the surrounding runtime already runs a model.
 
-The crosscheck prompt asks the LLM for JSON with four keys: `false_positives`, `additional_findings`, `severity_delta`, `overall_verdict`. This keeps the output machine-parseable and composable with audit JSON.
+The crosscheck prompt asks the reviewing LLM for JSON with four keys: `false_positives`, `additional_findings`, `severity_delta`, `overall_verdict`. This keeps the reply machine-parseable and composable with audit JSON.
 
 ### CLI extensions
 
 Added to `opus-mind` dispatcher:
 - `opus-mind symptom "<query>"` → symptom_search.py
-- `opus-mind crosscheck <path> [--exec]` → audit.py --crosscheck
+- `opus-mind crosscheck <path>` → audit.py --crosscheck (emits review prompt)
 
 ### pytest additions
 
@@ -247,7 +247,7 @@ Added to `opus-mind` dispatcher:
 | symptom → primitive lookup | PASS (caution-contagion, asymmetric-trust) |
 | symptom search indexes 212 evidence rows | PASS |
 | crosscheck prompt builds from fixture | PASS (93 lines output) |
-| crosscheck --exec graceful fallback without API key | PASS |
+| crosscheck emits prompt, never calls API (Claude Code skill scope) | PASS |
 | opus-mind CLI dispatches symptom + crosscheck | PASS |
 
 ## v4 — completeness pass (no new features)

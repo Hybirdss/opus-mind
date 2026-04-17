@@ -1,0 +1,20 @@
+Change this function to improve its performance. Specifically:
+- Reduce the time complexity below O(n²).
+- Keep the public signature identical.
+- Write a 3-line docstring explaining the new approach.
+- Preserve all existing behavior; add 2 unit tests proving equivalence.
+
+Here is an example of the style I want:
+
+<example>
+def dedupe(items: list[str]) -> list[str]:
+    """Return items with duplicates removed, preserving first-seen order.
+
+    O(n) via an auxiliary set. See benchmarks/dedupe.py for timing.
+    """
+    seen: set[str] = set()
+    return [x for x in items if not (x in seen or seen.add(x))]
+</example>
+
+If the function has side effects I haven't noticed, flag them and ask
+before rewriting. Otherwise apply the change and show only the diff.

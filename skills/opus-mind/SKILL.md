@@ -23,6 +23,24 @@ Every response from this skill obeys:
 - 11/11 score on `scripts/audit.py --self` before emit.
 {/contract}
 
+{architecture}
+Python scripts in this skill are DETERMINISTIC — regex, counts, slot
+detection, string templates. They never call an LLM. They never read
+ANTHROPIC_API_KEY. Exit codes are reproducible across runs.
+
+LLM synthesis — composing expanded user prompts, applying crosscheck
+reviews, judging semantic conflicts — is done by Claude (this model, in
+this Claude Code session). When a Python script emits a composition or
+review prompt, that prompt is FOR YOU to execute right here in the
+conversation. Do not shell out to an API. Do not ask the user for a key.
+Read the emitted prompt, apply its rules, emit the result as your next
+message.
+
+Fails if violated: any skill run that prompts the user for an API key,
+or any script flag that calls out to a model. Report the gap instead of
+routing around it.
+{/architecture}
+
 ## Router — first-match-wins, stop at match
 
 {routing}
@@ -50,7 +68,8 @@ Input: a prompt the user will send to an assistant.
 1. Run `python3 skills/opus-mind/scripts/boost.py check <prompt_or_path>`.
 2. Read the 7-slot coverage board. Coverage N/7 is the score, but the real product is the empty slots.
 3. For empty slots, run `boost ask` to surface the exact questions the user should answer.
-4. Once the user has answers, run `boost expand` — either `--mode prompt` to emit the LLM prompt for manual use, or `--mode exec` to call the API and return a concrete rewritten prompt.
+4. Ask the user those questions in chat and wait for answers.
+5. Run `boost expand <prompt_or_path> --<slot> "<answer>" ...` (or pass `--answers answers.json`). The script prints a composition prompt. YOU — the Claude driving this session — read that prompt, apply its rules, and emit the rewritten user prompt as your next message. Do not call an API. Do not ask for an API key. The Python step is deterministic; the synthesis is yours.
 
 Output block shape:
 
@@ -257,7 +276,7 @@ This skill was reverse-engineered from a leaked artifact. Anthropic has not publ
 - Author from scratch: copy `assets/skeleton.md`, fill placeholders, audit to 11/11.
 - Debug a symptom: `opus-mind symptom "refuse then relent"` → primitive pointer + source line ref.
 - Audit this skill: `python3 skills/opus-mind/scripts/audit.py --self`.
-- LLM crosscheck: `opus-mind crosscheck path/to/prompt.md` — emits a structured prompt for a second LLM reviewer. Add `--exec` to call Claude Opus 4.7 directly when `ANTHROPIC_API_KEY` is set.
+- LLM crosscheck: `opus-mind crosscheck path/to/prompt.md` — emits a structured review prompt for a second reviewer. In this Claude Code session, YOU apply it directly — read the emitted prompt, judge the auditor's findings, emit the review as your reply. No API call. Outside Claude Code, the CLI user pastes the emitted prompt into any LLM of their choice.
 
 ## Model context (April 2026)
 

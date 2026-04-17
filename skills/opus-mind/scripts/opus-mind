@@ -92,7 +92,10 @@ dispatch_boost() {
             echo
             echo "expand flags: --length / --format / --context / --constraints"
             echo "              --task / --few-shot / --clarify / --answers FILE"
-            echo "              --mode prompt|exec  --model MODEL"
+            echo
+            echo "expand emits the composition prompt. In a Claude Code"
+            echo "session, the current Claude applies it directly. Outside,"
+            echo "paste the emitted text into any LLM. No API key used."
             ;;
         *) echo "unknown boost subcommand: $sub" >&2; exit 2 ;;
     esac
@@ -114,16 +117,9 @@ case "$cmd" in
     draft)       exec "$py" "$here/draft.py" "$@" ;;
     symptom)     exec "$py" "$here/symptom_search.py" "$@" ;;
     crosscheck)
-        mode="prompt"
-        filtered=()
-        for arg in "$@"; do
-            if [ "$arg" = "--exec" ]; then
-                mode="exec"
-            else
-                filtered+=("$arg")
-            fi
-        done
-        exec "$py" "$here/audit.py" "${filtered[@]}" --crosscheck "$mode"
+        # Emit the LLM crosscheck review prompt. Claude (in Claude Code)
+        # applies it in-session; standalone users paste into any LLM.
+        exec "$py" "$here/audit.py" "$@" --crosscheck
         ;;
     self-audit)  exec "$py" "$here/audit.py" --self ;;
 

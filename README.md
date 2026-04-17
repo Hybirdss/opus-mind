@@ -66,17 +66,26 @@ $ opus-mind boost expand "write a blog post about AI safety" \
     --length "800 words" \
     --format "markdown with H2 headings" \
     --context "ML engineers, not alignment specialists" \
-    --constraints "conversational, skeptical, no jargon" \
-    --mode exec
+    --constraints "conversational, skeptical, no jargon"
 
-Write a 800-word markdown blog post with H2 headings on AI alignment
-for ML engineers who aren't alignment specialists. Open with a recent
-concrete example. Cover exactly three mechanisms, weighted toward
-deployment impact. End with one week's worth of reading. Tone:
-conversational, skeptical. Do not use jargon without defining it once.
+# ─── emitted composition prompt (truncated) ────────────────────────────
+# You are helping a user rewrite a vague prompt into a concrete one.
+#
+# The user's original prompt was:
+# <<<
+# write a blog post about AI safety
+# >>>
+#
+# They have provided answers to the missing specification slots:
+# - length: 800 words
+# - format: markdown with H2 headings
+# - context: ML engineers, not alignment specialists
+# - constraints: conversational, skeptical, no jargon
+#
+# Rewrite the prompt as a single, concrete, self-contained instruction ...
 ```
 
-The `expand` step is LLM-powered (`--mode prompt` emits the LLM prompt for manual use, `--mode exec` calls the API). The `check` and `ask` steps are 100% local and free.
+`expand` only **emits** the composition prompt — it never calls an API. Inside a Claude Code session, the current Claude reads the emitted prompt and writes the rewritten user prompt as its reply (no extra API key, no extra cost — you're already talking to Claude). Outside Claude Code, paste the emitted text into any LLM (Claude.ai, ChatGPT, Cursor) and run it there. `check` and `ask` are likewise 100% local and deterministic.
 
 ### The 7 BOOST slots
 
