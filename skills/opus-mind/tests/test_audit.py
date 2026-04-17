@@ -32,8 +32,8 @@ FIXTURES = HERE / "fixtures"
 
 def test_good_fixture_scores_6_of_6():
     r = audit.audit(FIXTURES / "good_6of6.md")
-    assert r.score == "6/6", (
-        f"expected 6/6 on good fixture, got {r.score}\n"
+    assert r.score == "11/11", (
+        f"expected 11/11 on good fixture, got {r.score}\n"
         f"failing: {[k for k, v in r.pass_flags.items() if not v]}"
     )
 
@@ -74,7 +74,7 @@ def test_bad_no_consequence_fails_i6():
 
 def test_skill_self_scores_6_of_6():
     r = audit.audit(HERE.parent / "SKILL.md")
-    assert r.score == "6/6", (
+    assert r.score == "11/11", (
         f"SKILL.md regressed: {r.score}\n"
         f"failing: {[k for k, v in r.pass_flags.items() if not v]}"
     )
@@ -251,12 +251,13 @@ def test_audit_i6_many_directives_needs_multiple_consequences(tmp_path):
         assert r.pass_flags["I6_failure_modes_explicit"] is False
 
 
-def test_audit_xml_unmatched_block_adds_structural_finding(tmp_path):
+def test_audit_xml_unmatched_block_fails_i7(tmp_path):
     p = tmp_path / "unmatched.md"
     p.write_text("{role}\nThis block is never closed.\n", encoding="utf-8")
     r = audit.audit(p)
-    structural = [f for f in r.findings if f.invariant == "structural"]
-    assert len(structural) >= 1
+    assert r.pass_flags["I7_namespace_balance"] is False
+    i7_findings = [f for f in r.findings if f.invariant == "I7"]
+    assert len(i7_findings) >= 1
 
 
 def test_audit_report_score_property():
@@ -272,13 +273,13 @@ def test_audit_format_json_contains_required_keys():
     data = _json.loads(raw)
     for key in ("path", "line_count", "score", "pass", "metrics", "findings"):
         assert key in data, f"missing key: {key}"
-    assert data["score"] == "6/6"
+    assert data["score"] == "11/11"
 
 
 def test_audit_format_human_contains_score():
     r = audit.audit(FIXTURES / "good_6of6.md")
     text = audit._format_human(r)
-    assert "score: 6/6" in text
+    assert "score: 11/11" in text
     assert "[PASS]" in text
 
 

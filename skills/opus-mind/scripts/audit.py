@@ -120,6 +120,51 @@ DIRECTIVE_VERBS = re.compile(
     re.IGNORECASE,
 )
 
+# ---------------------------------------------------------------------------
+# Structural detectors for invariants I7-I13. The design goal here is to
+# minimise word-level hardcoding — these detectors look at SHAPE, not
+# vocabulary, so they generalize across languages and house styles.
+# ---------------------------------------------------------------------------
+
+# I11 — Tier labels (primitive-pattern "hard-tier-labels").
+# Opus 4.7 emits tier labels as ALLCAPS multi-word tokens: "SEVERE VIOLATION"
+# (L640), "HARD LIMIT" (L682), "NON-NEGOTIABLE" (L657), "ABSOLUTE LIMITS"
+# (L678), "STRICT QUOTATION RULE" (L664). We detect any ≥2-word ALLCAPS
+# token sequence whose tokens are length ≥ 3 (avoids "IS A" noise).
+TIER_LABEL_RE = re.compile(
+    r"\b[A-Z][A-Z0-9]{2,}(?:[ -][A-Z][A-Z0-9]{2,})+\b"
+)
+
+# I13 — Hierarchical override.
+# Priority expressed structurally as either:
+#   (a) two or more "Tier N" tokens in the doc, or
+#   (b) a comparison-chain "X > Y > Z" with ≥ 3 operands, or
+#   (c) "precedence over" / "takes precedence" (tight fallback phrase set).
+TIER_TOKEN_RE = re.compile(r"\btier\s*[0-9]+\b", re.IGNORECASE)
+PRIORITY_CHAIN_RE = re.compile(r"[A-Za-z][A-Za-z_/ ]{1,20}>\s*[A-Za-z][A-Za-z_/ ]{1,20}(?:\s*>\s*[A-Za-z][A-Za-z_/ ]{1,20})+")
+PRECEDENCE_RE = re.compile(r"\b(?:takes? precedence|precedence over|non[- ]negotiable)\b", re.IGNORECASE)
+
+# I10 — Self-check assertions.
+# A self-check block has (a) a framing clause ("ask internally" / "before
+# emit" / `{self_check}` xml tag) AND (b) a dense question cluster — ≥ 3
+# question-ending lines within a 10-line window.
+SELF_CHECK_FRAMING_RE = re.compile(
+    r"(?:ask(?:s|ing)? (?:internally|itself)|before (?:emit|producing|returning|responding|sending|any (?:output|response))|self[- ]check|pre[- ]emit)",
+    re.IGNORECASE,
+)
+# {self_check} xml block — structurally identical to any other namespace
+# block, detected by name via XML_OPEN scan in _check_xml_balance.
+
+# I8 — Default + exception.
+# A default-plus-exception block has "default" and an exception keyword
+# within a small window (same line or adjacent lines). We check windowed
+# co-occurrence at line granularity so cross-paragraph drift counts.
+DEFAULT_TOKEN_RE = re.compile(r"\bdefault(?:s|ed|ing)?\b", re.IGNORECASE)
+EXCEPTION_TOKEN_RE = re.compile(
+    r"\b(?:exception|unless|except|only when|only if|opt[- ]in)\b",
+    re.IGNORECASE,
+)
+
 
 @dataclass
 class Finding:
@@ -443,11 +488,134 @@ def audit_text(
             "references/techniques/04-consequence-statement.md",
         ))
 
-    # --- structural warnings (not gating, but surfaced) ---
-    for ln, snip in xml_unmatched:
+    # --- I7: namespace balance (primitive 01) ---
+    # Every XML block that opens must close. Purely structural.
+    # Only gates when the doc uses namespace blocks at all (xml_coverage > 0).
+    i7_pass = (xml_coverage == 0) or (len(xml_unmatched) == 0)
+    report.pass_flags["I7_namespace_balance"] = i7_pass
+    if not i7_pass:
+        for ln, snip in xml_unmatched[:5]:
+            report.findings.append(Finding(
+                "I7", ln, snip, "unmatched XML block",
+                "references/primitives/01-namespace-blocks.md",
+            ))
+
+    # --- I8: default + exception (primitive 04) ---
+    # A prompt with ≥ 6 directives should express at least one default/exception
+    # pairing. Detected structurally: a line containing "default" with an
+    # exception keyword in the same line or the next 3 lines.
+    default_lines = {
+        idx for idx, line in enumerate(lines, start=1)
+        if DEFAULT_TOKEN_RE.search(line)
+    }
+    exception_lines = {
+        idx for idx, line in enumerate(lines, start=1)
+        if EXCEPTION_TOKEN_RE.search(line)
+    }
+    default_exception_pairs = sum(
+        1 for d in default_lines
+        if any(e for e in exception_lines if 0 <= (e - d) <= 3)
+    )
+    report.metrics["default_exception_pairs"] = default_exception_pairs
+    needs_default = report.metrics["directives"] >= 6
+    i8_pass = (not needs_default) or default_exception_pairs >= 1
+    report.pass_flags["I8_default_exception"] = i8_pass
+    if not i8_pass:
         report.findings.append(Finding(
-            "structural", ln, snip, "unmatched XML block",
-            "references/primitives/01-namespace-blocks.md",
+            "I8", 0, "",
+            f"{report.metrics['directives']} directives, no default+exception pair",
+            "references/primitives/04-default-plus-exception.md",
+        ))
+
+    # --- I9: self-check assertions (primitive 07) ---
+    # A long prompt (> 80 directive-bearing lines OR examples present) should
+    # have a self-check block. Structural signature: either a {self_check}
+    # xml block, OR a framing phrase ("ask internally", "before emit") with
+    # a dense question cluster (≥3 question-ending lines within 10-line window).
+    has_self_check_xml = any(
+        XML_OPEN.match(line) and "self_check" in line.lower()
+        for line in lines
+    )
+    framing_lines = [
+        idx for idx, line in enumerate(lines, start=1)
+        if SELF_CHECK_FRAMING_RE.search(line)
+    ]
+    question_lines = [
+        idx for idx, line in enumerate(lines, start=1)
+        if re.search(r"\?\s*$", line)
+    ]
+    question_cluster = False
+    for fl in framing_lines:
+        in_window = sum(1 for q in question_lines if 0 <= (q - fl) <= 10)
+        if in_window >= 3:
+            question_cluster = True
+            break
+    has_self_check = has_self_check_xml or question_cluster
+    report.metrics["has_self_check"] = int(has_self_check)
+    needs_self_check = (
+        report.metrics["directives"] >= 12
+        or report.metrics["examples"] >= 2
+    )
+    i9_pass = (not needs_self_check) or has_self_check
+    report.pass_flags["I9_self_check"] = i9_pass
+    if not i9_pass:
+        report.findings.append(Finding(
+            "I9", 0, "",
+            f"{report.metrics['directives']} directives / "
+            f"{report.metrics['examples']} examples, no self-check block",
+            "references/primitives/07-self-check-assertions.md",
+        ))
+
+    # --- I10: tier labels (pattern: hard-tier-labels) ---
+    # ALLCAPS multi-word tokens (≥2 words, ≥3 letters each). Opus 4.7 uses
+    # these as compiler-directive-grade severity markers. Required when the
+    # prompt carries "high-stakes" rules — proxied as: has refusal content
+    # OR ≥ 8 directives.
+    tier_labels = [
+        (idx, line.rstrip(), m.group(0))
+        for idx, line in enumerate(lines, start=1)
+        for m in TIER_LABEL_RE.finditer(line)
+    ]
+    report.metrics["tier_labels"] = len(tier_labels)
+    needs_tier_labels = (
+        report.metrics["refusal_topic_signals"] >= 2
+        or report.metrics["directives"] >= 8
+    )
+    i10_pass = (not needs_tier_labels) or len(tier_labels) >= 1
+    report.pass_flags["I10_tier_labels"] = i10_pass
+    if not i10_pass:
+        report.findings.append(Finding(
+            "I10", 0, "",
+            "high-stakes content without ALLCAPS tier labels "
+            "(e.g. SEVERE VIOLATION, HARD LIMIT, NON-NEGOTIABLE)",
+            "references/patterns/hard-tier-labels.md",
+        ))
+
+    # --- I11: hierarchical override (primitive 12) ---
+    # Priority expressed as (a) 2+ "Tier N" tokens, (b) comparison chain
+    # X > Y > Z, or (c) precedence-language phrases. Needed when there
+    # are multiple high-stakes categories (proxy: refusal content +
+    # ≥ 8 directives, so rule collisions are likely).
+    tier_tokens = len(TIER_TOKEN_RE.findall(text))
+    priority_chains = len(PRIORITY_CHAIN_RE.findall(text))
+    precedence_phrases = len(PRECEDENCE_RE.findall(text))
+    report.metrics["priority_signals"] = (
+        tier_tokens + priority_chains + precedence_phrases
+    )
+    needs_override = (
+        report.metrics["refusal_topic_signals"] >= 2
+        and report.metrics["directives"] >= 8
+    )
+    i11_pass = (not needs_override) or (
+        tier_tokens >= 2 or priority_chains >= 1 or precedence_phrases >= 1
+    )
+    report.pass_flags["I11_hierarchical_override"] = i11_pass
+    if not i11_pass:
+        report.findings.append(Finding(
+            "I11", 0, "",
+            "refusal content with multiple rules, no explicit priority "
+            "(tiers, X > Y > Z, or 'takes precedence over')",
+            "references/primitives/12-hierarchical-override.md",
         ))
 
     return report

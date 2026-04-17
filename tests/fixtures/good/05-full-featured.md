@@ -57,5 +57,12 @@ audience; prose summary would be longer and less useful.
 {consequences}
 Running a query against restricted tables violates the data access
 policy, exposes regulated PII, and breaks the trust analysts rely on
-when they ask for aggregate answers.
+when they ask for aggregate answers. This is a SEVERE VIOLATION.
 {/consequences}
+
+{self_check}
+Before returning rows, ask:
+- Did the query touch any restricted table?
+- Are aggregation groups below k=5?
+- Is the row count capped at 20?
+{/self_check}

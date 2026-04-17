@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# opus-mind — single CLI entry for audit / decode / fix / draft / symptom.
+# opus-mind — single CLI entry for audit / decode / fix / draft / plan / symptom.
 #
 # Usage:
-#   opus-mind audit      <path> [--json] [--crosscheck prompt|exec]
+#   opus-mind audit      <path> [--json] [--stylebook] [--crosscheck prompt|exec]
 #   opus-mind decode     <path> [--json]
-#   opus-mind fix        <path> [--apply] [-o out.md]
+#   opus-mind plan       <path> [--json]
+#   opus-mind fix        <path> [--apply] [--add <names>] [-o out.md]
 #   opus-mind draft      [-o out.md] [--answers answers.json]
 #   opus-mind symptom    "<natural-language symptom>" [-n N]
 #   opus-mind crosscheck <path> [--exec]
@@ -20,9 +21,10 @@ usage() {
     cat <<EOF
 opus-mind — compile a prompt like a program.
 
-  audit <path>        score against 6 invariants
-  decode <path>       label which primitives are present
-  fix <path>          deterministic slop rewriter
+  audit <path>        score against 11 invariants (I1-I11)
+  decode <path>       label which of 12 primitives are present
+  plan <path>         TODO checklist: required primitives missing for this prompt
+  fix <path>          deterministic slop rewriter (--add <name> injects skeleton)
   draft [-o file]     interactive skeleton builder
   symptom <query>     symptom → source evidence + primitive pointer
   crosscheck <path>   emit LLM crosscheck prompt (add --exec to call API)
@@ -39,6 +41,7 @@ cmd="${1:-help}"
 case "$cmd" in
     audit)       exec "$py" "$here/audit.py" "$@" ;;
     decode)      exec "$py" "$here/decode.py" "$@" ;;
+    plan)        exec "$py" "$here/plan.py" "$@" ;;
     fix)         exec "$py" "$here/fix.py" "$@" ;;
     draft)       exec "$py" "$here/draft.py" "$@" ;;
     symptom)     exec "$py" "$here/symptom_search.py" "$@" ;;

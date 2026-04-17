@@ -179,13 +179,13 @@ Full index and primitive-to-technique map at `references/techniques/README.md`.
 ## Self-compliance gate
 
 {self_compliance}
-Before this skill releases any output, it runs `scripts/audit.py` on its own SKILL.md. The gate:
-- 6/6 invariants pass.
-- 0 Tier-1 slop words.
+Before this skill releases any output, it runs `scripts/audit.py` on its own SKILL.md. The gate is NON-NEGOTIABLE:
+- 11/11 invariants pass.
 - 0 narration phrases.
-- ≤ 2 hedges.
+- hedge_density ≤ 0.25.
+- number_density ≥ 0.10.
 
-A score below 6/6 blocks release. This skill does not ship advice it refuses to follow.
+A score below 11/11 is a HARD BLOCK on release. This skill does not ship advice it refuses to follow.
 {/self_compliance}
 
 ## Evidence and attribution

@@ -4,15 +4,32 @@ Claude's own system prompt, reverse-engineered into tools that audit yours.
 
 ```
 $ opus-mind audit CLAUDE.md
-score: 3/6
+score: 6/11
   [FAIL] I1_reduce_interpretation
   [FAIL] I2_no_rule_conflicts
   [FAIL] I6_failure_modes_explicit
+  [FAIL] I8_default_exception
+  [FAIL] I9_self_check
 
   -- [I1] hedge_density 0.42 > 0.25 (11 hedges / 26 directives)
-  -- [I1] number_density 0.04 < 0.10 (1 numbers / 26 directives)
   -- [I2] 26 directives, 0 ladders        fix → primitives/02-decision-ladders.md
   -- [I6] 0 consequences, need ≥ 2        fix → techniques/04-consequence-statement.md
+```
+
+```
+$ opus-mind plan CLAUDE.md
+domain signals: has_tools, is_long, has_refusals
+TODO — missing required primitives:
+  [ ] I2_no_rule_conflicts  → 02 decision-ladders   (fix: fix.py --add ladder)
+  [ ] I6_failure_modes_explicit  → 04 consequence   (fix: fix.py --add consequences)
+  [ ] I8_default_exception  → 04 default+exception  (fix: fix.py --add defaults)
+  [ ] I9_self_check         → 07 self-check        (fix: fix.py --add self-check)
+
+$ opus-mind fix CLAUDE.md --add ladder,consequences,defaults,self-check --apply
+  injected: ladder, consequences, defaults, self-check
+
+$ opus-mind audit CLAUDE.md
+score: 10/11
 ```
 
 ```
@@ -24,11 +41,12 @@ $ opus-mind decode your-prompt.md
 [absent] 11 capability-disclosure  0 clauses  ← missing
 ```
 
-Three things here:
+Four things here:
 
 1. **12 reusable primitives** extracted from the 1,408-line leaked Claude Opus 4.7 system prompt — the highest-quality production prompt engineering in public view.
-2. **Deterministic tools** (`audit`, `decode`, `fix`, `draft`) that score, label, and rewrite any prompt against those primitives. Regex + counts, no LLM calls, 0 API cost, reproducible.
-3. **A pre-commit hook** that blocks a commit when `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, or any `**/SKILL.md` drops below 5/6. Self-enforcing across your repo.
+2. **11 structural invariants** that detect whether a prompt practises those primitives. Regex + density + shape, no hardcoded style lists, no LLM calls, zero API cost.
+3. **Four-command loop — `audit` → `plan` → `fix --add` → `audit`.** Score 0-11, get a TODO of missing primitives, inject structural skeletons for the gaps, re-score.
+4. **A pre-commit hook** that blocks a commit when `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, or any `**/SKILL.md` drops below a threshold. Self-enforcing across your repo.
 
 This repo is dogfooded. Every prompt-like file here passes the same audit that gates your commits.
 
@@ -152,31 +170,47 @@ $ python3 -m pytest tests/ skills/opus-mind/tests/ -q
 
 ### External prompt scores (snapshot)
 
-Under the pure-Opus-4.7 auditor:
+Under the pure-Opus-4.7 auditor (11 invariants):
 
-| Source | Score | What's missing |
+| Source | Score | Chief gaps |
 |---|---|---|
-| Claude Opus 4.7 (CL4R1T4S) | **6/6** | — (the canon) |
-| OpenAI Codex | 5/6 | I2 (no explicit decision ladder for its size) |
-| Cursor 2.0 | 3/6 | I1 number density, I2 ladder, I6 consequence |
-| ChatGPT-5 (Aug 2025) | 1/6 | I1, I2, I3, I5, I6 |
+| Claude Opus 4.7 (CL4R1T4S) | **11/11** | — (the canon, non-negotiable) |
+| OpenAI Codex | 7/11 | I2 ladder, I8 default+exception, I9 self-check, I10 tier labels |
+| Cursor 2.0 | 6/11 | I1 numbers, I2 ladder, I6 consequence, I8 default, I9 self-check |
+| ChatGPT-5 (Aug 2025) | 4/11 | I1, I2, I3, I5, I6, I9, I11 |
 
-These are findings, not verdicts. A 3/6 score means the prompt is not written in the 12-primitive style; it does not mean the product is bad.
+These are findings, not verdicts. A 6/11 score means the prompt is not written in the 12-primitive style — it does not mean the product is bad. All four prompts fetched from the public CL4R1T4S archive; scores reproducible via `opus-mind audit`.
 
-## Pure Opus 4.7 grounding
+## Pure Opus 4.7 grounding — 11 invariants
 
-Every signal set in `audit.py` is traceable to specific lines of the CL4R1T4S mirror:
+Every signal set in `audit.py` is traceable to specific lines of the CL4R1T4S mirror. The 11 invariants cover the 12 primitives (I12 capability-disclosure is advisory-only in `plan`, not gated in `audit`, because it requires product-specific vocabulary):
 
-| Invariant | Primitive | Source lines |
-|---|---|---|
-| I1 reduce interpretation surface | 03 hard-numbers | L664 (15-word limit), L620 (tool-call scaling) |
-| I2 eliminate rule conflicts | 02 decision-ladders | L515–L537 (request_evaluation_checklist) |
-| I3 catch motivated reasoning | 09 reframe-as-signal | L33 (reframing IS the refusal signal) |
-| I4 keep internals private | 08 anti-narration | L536, L560 (two anti-narration rules) |
-| I5 calibrate through examples | 06 example + rationale | L710–L750 (copyright examples with rationale) |
-| I6 make failure modes explicit | technique 04 | L753–L759 (consequence block) |
+| # | Primitive | What's checked | Source evidence |
+|---|---|---|---|
+| I1 | 03 hard-numbers | hedge_density ≤ 0.25, number_density ≥ 0.10 | L664 (15-word limit), L620 (tool-call scaling) |
+| I2 | 02 decision-ladders | Step N tokens, "stop at the first match" | L515–L537 (request_evaluation_checklist) |
+| I3 | 09 reframe-as-signal | reframe clause when refusal content present | L33 |
+| I4 | 08 anti-narration | zero forbidden preambles | L536, L560 |
+| I5 | 06 example + rationale | every example has rationale | L710–L750 |
+| I6 | technique 04 | consequence count ≥ directives/10 | L753–L759 |
+| I7 | 01 namespace-blocks | every `{foo}` has `{/foo}` | structural, whole doc |
+| I8 | 04 default + exception | "default" + "unless/except/only when" co-occur | L25, L57–68 |
+| I9 | 07 self-check | self-check block when prompt is long | L698–L707 |
+| I10 | pattern: tier-labels | ALLCAPS multi-word token when high-stakes | L640 "SEVERE VIOLATION", L657 "NON-NEGOTIABLE", L678 "ABSOLUTE LIMITS" |
+| I11 | 12 hierarchical-override | Tier N tokens OR X > Y > Z chain OR "takes precedence" | L657 |
 
-The author's personal anti-slop word list (`delve`, `utilize`, `leverage`, etc.) is **not** part of the primary score — the Opus 4.7 source itself uses several of those words. Those preferences live in [`stylebook.py`](./skills/opus-mind/scripts/stylebook.py) and surface only under `audit.py --stylebook`. The separation keeps "what the source teaches" distinct from "what the author prefers."
+Every detector is **structural** where possible (XML balance, numeric density, ALLCAPS shape, Tier tokens). The few that require vocabulary (reframe, consequence, refusal-topic, narration) use small, source-cited lists. The author's personal anti-slop list (`delve`, `utilize`, `leverage`...) is **not** part of the primary score — the Opus 4.7 source itself uses several of those words. Those preferences live in [`stylebook.py`](./skills/opus-mind/scripts/stylebook.py), opt-in via `audit.py --stylebook`.
+
+### The loop: audit → plan → fix
+
+```
+opus-mind audit  CLAUDE.md                 # score 11 invariants, show failures
+opus-mind plan   CLAUDE.md                 # list MISSING required primitives for your domain
+opus-mind fix    CLAUDE.md --add <names>   # inject structural skeletons for the missing ones
+opus-mind audit  CLAUDE.md                 # re-score: watch it climb
+```
+
+Valid `--add` values: `ladder`, `reframe-guard`, `consequences`, `tier-labels`, `self-check`, `defaults`. Each injects a minimal, Opus 4.7-grounded scaffold where you fill in the domain-specific words.
 
 ---
 

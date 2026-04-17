@@ -30,3 +30,10 @@ being wrong.
 Answering a question that names code without reading that code leaks
 confabulations into the user's mental model of the system.
 {/consequences}
+
+{self_check}
+Before emit, ask:
+- Did I actually read the code the user named?
+- Did I cite the file and line?
+- Is any claim unverified?
+{/self_check}
