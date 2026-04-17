@@ -210,8 +210,9 @@ This skill was reverse-engineered from a leaked artifact. Anthropic has not publ
 
 - Audit an existing prompt: `python3 skills/opus-mind/scripts/audit.py path/to/prompt.md`
 - Author from scratch: copy `assets/skeleton.md`, fill placeholders, audit to 6/6.
-- Debug a symptom: match the symptom table, read the pointed-to primitive, apply the fix.
+- Debug a symptom: `opus-mind symptom "refuse then relent"` → primitive pointer + source line ref.
 - Audit this skill: `python3 skills/opus-mind/scripts/audit.py --self`.
+- LLM crosscheck: `opus-mind crosscheck path/to/prompt.md` — emits a structured prompt for a second LLM reviewer. Add `--exec` to call Claude Opus 4.7 directly when `ANTHROPIC_API_KEY` is set.
 
 ## Model context (April 2026)
 

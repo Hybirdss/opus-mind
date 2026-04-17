@@ -387,6 +387,92 @@ def _format_json(r: Report) -> str:
     }, indent=2, ensure_ascii=False)
 
 
+CROSSCHECK_PROMPT_HEADER = """\
+You are a second reviewer for a system-prompt auditor.
+
+A deterministic auditor (regex + counts, no LLM) has scored the target prompt
+against 6 invariants:
+- I1 reduce interpretation surface (no vague adj, no hedges)
+- I2 eliminate rule conflicts (decision ladders for routing)
+- I3 catch motivated reasoning (reframe-as-signal for refusals)
+- I4 keep internals private (no machinery narration)
+- I5 calibrate through examples (every example has rationale)
+- I6 make failure modes explicit (consequences stated)
+
+Your job:
+1. Verify the deterministic findings below. Flag any false positives.
+2. Surface semantic violations the regex checker cannot catch, such as:
+   - rules that contradict each other on some input (even if no ladder)
+   - examples whose rationale is actually non-load-bearing filler
+   - consequence statements that name a weak or wrong harm
+   - refusal policy that silently exempts a high-risk category
+   - capability claims that are brittle under rephrase
+3. Output: JSON with { false_positives: [], additional_findings: [],
+   severity_delta: {I1..I6: "+/-/none"} }.
+
+Use the primitive references below for vocabulary. Cite source/opus-4.7.txt
+line numbers when relevant.
+"""
+
+
+def _build_crosscheck_prompt(r: Report, target_text: str) -> str:
+    lines = [CROSSCHECK_PROMPT_HEADER, ""]
+    lines.append("## Auditor report (deterministic)")
+    lines.append("")
+    lines.append(f"path: {r.path}")
+    lines.append(f"score: {r.score}")
+    lines.append("")
+    lines.append("invariants:")
+    for k, v in r.pass_flags.items():
+        mark = "PASS" if v else "FAIL"
+        lines.append(f"  [{mark}] {k}")
+    lines.append("")
+    lines.append("findings:")
+    for f in r.findings:
+        prefix = f"L{f.line}" if f.line else "--"
+        lines.append(f"  {prefix} [{f.invariant}] {f.issue}")
+        if f.snippet:
+            lines.append(f"       > {f.snippet[:120]}")
+    lines.append("")
+    lines.append("## Target prompt (the thing being audited)")
+    lines.append("")
+    lines.append("```")
+    lines.append(target_text[:12000])
+    lines.append("```")
+    lines.append("")
+    lines.append("## Primitive vocabulary")
+    lines.append(
+        "01 namespace-blocks, 02 decision-ladders, 03 hard-numbers, "
+        "04 default-plus-exception, 05 cue-based-matching, "
+        "06 example-plus-rationale, 07 self-check, 08 anti-narration, "
+        "09 reframe-as-signal, 10 asymmetric-trust, "
+        "11 capability-disclosure, 12 hierarchical-override."
+    )
+    lines.append("")
+    lines.append(
+        "Respond with JSON only. Keys: "
+        "false_positives, additional_findings, severity_delta, overall_verdict."
+    )
+    return "\n".join(lines)
+
+
+def _try_api_call(prompt: str, model: str) -> str | None:
+    import os
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return None
+    try:
+        import anthropic  # type: ignore
+    except ImportError:
+        return None
+    client = anthropic.Anthropic()
+    response = client.messages.create(
+        model=model,
+        max_tokens=2048,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="opus-mind prompt auditor")
     parser.add_argument("path", nargs="?", help="prompt file to audit")
@@ -394,6 +480,16 @@ def main() -> int:
     parser.add_argument(
         "--self", action="store_true",
         help="audit the SKILL.md next to this script",
+    )
+    parser.add_argument(
+        "--crosscheck",
+        choices=["prompt", "exec"],
+        help="emit LLM crosscheck prompt (prompt) or call the API (exec)",
+    )
+    parser.add_argument(
+        "--crosscheck-model",
+        default="claude-opus-4-7",
+        help="model to use for --crosscheck exec (default: claude-opus-4-7)",
     )
     args = parser.parse_args()
 
@@ -410,6 +506,25 @@ def main() -> int:
         return 2
 
     report = audit(target)
+
+    if args.crosscheck:
+        target_text = target.read_text(encoding="utf-8")
+        prompt = _build_crosscheck_prompt(report, target_text)
+        if args.crosscheck == "prompt":
+            print(prompt)
+            return 0
+        response = _try_api_call(prompt, args.crosscheck_model)
+        if response is None:
+            print(
+                "note: ANTHROPIC_API_KEY missing or anthropic SDK not installed.",
+                file=sys.stderr,
+            )
+            print("emitting prompt for manual paste.", file=sys.stderr)
+            print(prompt)
+            return 2
+        print(response)
+        return 0
+
     print(_format_json(report) if args.json else _format_human(report))
     return 0 if all(report.pass_flags.values()) else 1
 
