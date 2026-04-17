@@ -250,6 +250,113 @@ Added to `opus-mind` dispatcher:
 | crosscheck --exec graceful fallback without API key | PASS |
 | opus-mind CLI dispatches symptom + crosscheck | PASS |
 
+## v4 — completeness pass (no new features)
+
+### Scope correction
+
+Polish pass caught a conceptual bug: the skill was treating `.md` as synonymous
+with "prompt". Actually most `.md` files in this repo are **docs about prompts**
+(primitives/, techniques/, annotations/, README, BUILD). Auditing those would
+produce meaningless noise — "this primitive file mentions 'utilize' as a bad
+example" is not a finding.
+
+Fix: promoted a single source of truth for what IS a prompt. `.opus-mind.json`
+at the repo root lists 3 designated prompt files and 1 calibration file.
+Auditor iterates over this list, not over every .md.
+
+Additional correction: dropped the idea that "audit source/opus-4.7.txt proves
+Opus 4.7 is imperfect." It doesn't — we extracted the principles from source.
+If source fails a check, it means (a) our regex is miscalibrated, or (b) we
+over-generalized a principle. Source audit is reframed as a **calibration
+snapshot**, not a judgment test. Expected-metrics live in
+`.opus-mind.json:calibration_files[]`.
+
+### stdin support
+
+audit.py / decode.py / fix.py all accept `-` as path to read from stdin.
+fix.py pipes rewritten text to stdout when reading stdin. Verbose counts go
+to stderr so piping stays clean.
+
+```
+cat my-prompt.txt | opus-mind audit -
+jq -r .system config/agent.yaml | opus-mind audit -
+```
+
+Breaks the `.md` assumption — the tool now works on any text regardless of
+how it was extracted.
+
+### Regex tightening
+
+Removed `proper` and `reasonable` from SLOP_TIER2_EXACT. Too many legitimate
+English uses ("proper noun", "reasonable doubt") caused false positives.
+Prefer false negative on ambiguous words.
+
+Expanded NUMBER_CONSTRAINT to cover `%`, `per hour`, `requests`, `iterations`,
+`attempts`, `retries`, `users`, `pages`, `rows`, `dollars`. Previous regex
+missed `"500 requests per hour"` as a numeric constraint, causing
+`"robust load balancer"` nearby to be flagged.
+
+Applied identical regex to audit.py, decode.py, and fix.py (single shape).
+
+### Code-block safety in fix.py
+
+fix.py now parses fenced code blocks (```...```) and inline code (\`...\`)
+before rewriting. Code segments are skipped. Sample code in docs (e.g., a
+`README.md` showing `utilize_foo()`) no longer gets rewritten. Counter
+`code_segments_skipped` tracks skips.
+
+### Install-hook UX
+
+install-hook.sh gained:
+- Existing hook detection: backs up non-opus-mind hooks to
+  `pre-commit.backup-<timestamp>`.
+- `--dry-run` flag prints the hook content without installing.
+- `--uninstall` flag restores the most recent backup, or removes
+  the opus-mind hook if no backup exists.
+- `--threshold N` validated to 1-6.
+- Bypass instructions (`git commit --no-verify`) inline in the hook.
+- Hook itself reads `.opus-mind.json:prompts[]` for file list, with
+  pattern fallback (CLAUDE.md / AGENTS.md / .cursorrules / SKILL.md).
+
+### Tests added (test_polish.py, 26 cases)
+
+| Group | Cases |
+|---|---|
+| False-positive gallery | 3 (property/proper disambiguation, % boundary, narration substring) |
+| Error paths | 6 (empty text, missing file, binary file, empty stdin, fix no-op, decode empty) |
+| stdin roundtrip | 3 (audit / decode / fix via `-`) |
+| Code-block safety | 3 (fenced skip, inline skip, idempotent with code blocks) |
+| Line-ref integrity | 2 (skill.md refs exist in source, keyword anchors match) |
+| Calibration snapshot | 1 (source/opus-4.7.txt metrics match bounds when present) |
+| Designated prompts | 3 (registry valid, scores match expected, calibration gates) |
+| CLI dispatcher | 3 (help, self-audit, unknown subcmd) |
+
+Line-ref and calibration tests skip gracefully when `source/opus-4.7.txt` is
+not in the checkout (CL4R1T4S-hosted, not committed).
+
+### GitHub Actions CI
+
+`.github/workflows/opus-mind.yml` runs on push/PR that touches the skill or
+its source files. Matrix over Python 3.11 / 3.12 / 3.13. Steps:
+1. pytest
+2. self-audit must score 6/6
+3. all `.opus-mind.json:prompts[]` must meet `expected_score`
+4. install-hook.sh bash syntax
+5. CLI help exits zero
+
+## Verification summary (v4)
+
+| Check | Result |
+|---|---|
+| Self-audit 6/6 | PASS |
+| pytest | 75 passed, 4 skipped (source absent) |
+| Designated prompts match registry | PASS (6/6, 5/6, 3/6) |
+| Regex false positives eliminated | PASS (proper/reasonable dropped, % + per-hour added) |
+| fix.py skips code blocks | PASS |
+| stdin pipelines work (audit / decode / fix) | PASS |
+| install-hook.sh backup / uninstall / dry-run | PASS |
+| CI workflow valid YAML | PASS |
+
 ## Model context
 
 Built April 2026. Primary reverse-engineering target: Claude Opus 4.7 system prompt (1408 lines, CL4R1T4S mirror). Primitives generalize to GPT 5.4, Gemini 3.1 Pro, and any sufficiently capable LLM — they address prompt-engineering failure modes, not model-specific behavior.

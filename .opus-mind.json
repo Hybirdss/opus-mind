@@ -1,0 +1,45 @@
+{
+  "$comment": "opus-mind prompt registry. Lists files that ARE prompts (audit targets), not files that talk ABOUT prompts. Docs in README, primitives/, techniques/, annotations/, methodology/, BUILD.md are NOT prompts — do not include them.",
+  "prompts": [
+    {
+      "path": "skills/opus-mind/SKILL.md",
+      "expected_score": 6,
+      "note": "skill definition, self-gated to 6/6 before release"
+    },
+    {
+      "path": "templates/system-prompt-skeleton.md",
+      "expected_score": 5,
+      "note": "skeleton has instructional prose wrapped around the prompt body; expected to trip I4 on meta-text"
+    },
+    {
+      "path": "templates/example-customer-support.md",
+      "expected_score": 3,
+      "note": "intentional demo of a real, imperfect prompt — shipped as before state for teaching",
+      "fixable": true
+    }
+  ],
+  "calibration_files": [
+    {
+      "path": "source/opus-4.7.txt",
+      "expected_metrics": {
+        "slop_tier1": {"max": 0},
+        "narration": {"max": 0},
+        "numeric_constraints": {"min": 30},
+        "ladder_signals": {"min": 3},
+        "reframe_signals": {"min": 1},
+        "consequences": {"min": 10}
+      },
+      "note": "This is our reverse-engineering source. We did NOT calibrate regexes by fitting to this file — we wrote regexes from the distilled principles in primitives/. A mismatch here is either (a) our regex is wrong, (b) source deviates from a principle we over-generalized. Both require human review. This is a calibration snapshot, not proof of imperfection."
+    }
+  ],
+  "hook_patterns": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "GEMINI.md",
+    "SKILL.md",
+    ".cursorrules",
+    "system-prompt*.md",
+    "prompts/**/*.md",
+    "prompts/**/*.txt"
+  ]
+}

@@ -1,0 +1,68 @@
+name: opus-mind
+
+on:
+  push:
+    paths:
+      - 'skills/opus-mind/**'
+      - 'templates/**'
+      - 'primitives/**'
+      - 'techniques/**'
+      - 'evidence/**'
+      - '.opus-mind.json'
+      - '.github/workflows/opus-mind.yml'
+  pull_request:
+    paths:
+      - 'skills/opus-mind/**'
+      - 'templates/**'
+      - 'primitives/**'
+      - 'techniques/**'
+      - 'evidence/**'
+      - '.opus-mind.json'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run pytest
+        run: python -m pytest skills/opus-mind/tests/ -v
+
+      - name: Self-audit SKILL.md must be 6/6
+        run: python3 skills/opus-mind/scripts/audit.py --self
+
+      - name: Registry designated prompts must meet expected scores
+        run: |
+          python3 -c "
+          import json, sys, subprocess
+          d = json.load(open('.opus-mind.json'))
+          bad = []
+          for p in d['prompts']:
+              r = subprocess.run(['python3','skills/opus-mind/scripts/audit.py',p['path']],
+                                 capture_output=True, text=True)
+              score_line = next((l for l in r.stdout.splitlines() if l.startswith('score:')), '')
+              score = int(score_line.split(':')[1].split('/')[0].strip()) if score_line else 0
+              if score < p['expected_score']:
+                  bad.append(f'{p[\"path\"]}: {score}/6 < expected {p[\"expected_score\"]}')
+          if bad:
+              print('\n'.join(bad))
+              sys.exit(1)
+          print('all designated prompts meet expected scores.')
+          "
+
+      - name: install-hook.sh bash syntax
+        run: bash -n skills/opus-mind/scripts/install-hook.sh
+
+      - name: opus-mind CLI help exits zero
+        run: bash skills/opus-mind/scripts/opus-mind help
