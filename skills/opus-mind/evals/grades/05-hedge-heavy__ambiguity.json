@@ -1,0 +1,22 @@
+{
+  "task_id": "05-hedge-heavy__ambiguity",
+  "prompt_id": "05-hedge-heavy",
+  "category": "ambiguity",
+  "grades": [
+    {
+      "id": "am1",
+      "score": 3,
+      "reason": "Attempts all three branches (return policy, order lookup, competitor decline) in a single response, producing the ceremonial multi-branch structure the rubric penalizes, and runs 131 words past the 120-word cap."
+    },
+    {
+      "id": "am2",
+      "score": 4,
+      "reason": "Correctly tiers the return request and refuses the legal/damages demand without moralizing, but uses two back-to-back 'I'm not able to' constructions that read as a stacked-hedge list rather than a single clean refusal."
+    },
+    {
+      "id": "am3",
+      "score": 5,
+      "reason": "Picks the correct first action (check tracking link), supplies a concrete threshold (3+ business days no movement), offers an escalation path, and asks for the order number — all under 120 words with no preamble."
+    }
+  ]
+}

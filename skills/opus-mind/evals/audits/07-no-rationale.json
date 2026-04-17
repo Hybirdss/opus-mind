@@ -1,0 +1,157 @@
+{
+  "schema_version": "1.1",
+  "path": "skills/opus-mind/evals/corpus/prompts/07-no-rationale.md",
+  "line_count": 54,
+  "score": "7/11",
+  "structural_health": "7/11",
+  "verdict": "BORDERLINE",
+  "thin_reason": null,
+  "placeholder_count": 0,
+  "pass": {
+    "I1_reduce_interpretation": true,
+    "I2_no_rule_conflicts": true,
+    "I3_motivated_reasoning": true,
+    "I4_anti_narration": false,
+    "I5_example_rationale": false,
+    "I6_failure_modes_explicit": true,
+    "I7_namespace_balance": true,
+    "I8_default_exception": false,
+    "I9_self_check": true,
+    "I10_tier_labels": false,
+    "I11_hierarchical_override": true
+  },
+  "metrics": {
+    "hedges": 0,
+    "hedge_density": 0.0,
+    "narration": 1,
+    "ladder_signals": 3,
+    "reframe_signals": 3,
+    "consequences": 5,
+    "refusal_topic_signals": 7,
+    "examples": 5,
+    "rationales": 0,
+    "numeric_constraints": 5,
+    "directives": 6,
+    "number_density": 0.833,
+    "xml_inside_lines": 31,
+    "xml_unmatched": 0,
+    "default_exception_pairs": 0,
+    "has_self_check": 1,
+    "tier_labels": 0,
+    "priority_signals": 10,
+    "placeholder_count": 0
+  },
+  "findings": [
+    {
+      "invariant": "I4",
+      "line": 53,
+      "snippet": "{response}Let me check the tracking for you — one moment.{/response}",
+      "issue": "Narration phrase: 'Let me'",
+      "fix_pointer": "references/primitives/08-anti-narration.md"
+    },
+    {
+      "invariant": "I5",
+      "line": 0,
+      "snippet": "",
+      "issue": "5 examples, 0 rationales",
+      "fix_pointer": "references/primitives/06-example-plus-rationale.md"
+    },
+    {
+      "invariant": "I8",
+      "line": 0,
+      "snippet": "",
+      "issue": "6 directives, no default+exception pair",
+      "fix_pointer": "references/primitives/04-default-plus-exception.md"
+    },
+    {
+      "invariant": "I10",
+      "line": 0,
+      "snippet": "",
+      "issue": "high-stakes content without ALLCAPS tier labels (e.g. SEVERE VIOLATION, HARD LIMIT, NON-NEGOTIABLE)",
+      "fix_pointer": "references/patterns/hard-tier-labels.md"
+    }
+  ],
+  "measurements": {
+    "I1_reduce_interpretation": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I2_no_rule_conflicts": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I3_motivated_reasoning": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I4_anti_narration": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I5_example_rationale": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I6_failure_modes_explicit": {
+      "delta": 0.5,
+      "n_pass": 18,
+      "n_fail": 18,
+      "signal": "load-bearing",
+      "note": "Δ=+0.50 load-bearing"
+    },
+    "I7_namespace_balance": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I8_default_exception": {
+      "delta": -0.19,
+      "n_pass": 27,
+      "n_fail": 9,
+      "signal": "anti-signal",
+      "note": "Δ=-0.19 anti-signal"
+    },
+    "I9_self_check": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    },
+    "I10_tier_labels": {
+      "delta": -0.19,
+      "n_pass": 27,
+      "n_fail": 9,
+      "signal": "anti-signal",
+      "note": "Δ=-0.19 anti-signal"
+    },
+    "I11_hierarchical_override": {
+      "delta": null,
+      "n_pass": 36,
+      "n_fail": 0,
+      "signal": "unmeasured",
+      "note": "no fail bucket in corpus"
+    }
+  },
+  "measurements_corpus": {
+    "prompts": 4,
+    "cases": 36
+  }
+}

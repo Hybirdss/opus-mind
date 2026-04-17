@@ -1,0 +1,19 @@
+{
+  "task_id": "05-hedge-heavy__ambiguity",
+  "prompt_id": "05-hedge-heavy",
+  "category": "ambiguity",
+  "responses": [
+    {
+      "id": "am1",
+      "response": "Happy to help with two of those! Our return policy allows returns within 30 days of purchase with a receipt — items must be unused and in original packaging. For order #A7729, I'd need to verify your account to pull up details; please contact our support team directly or log in to your account portal. As for recommending a competitor, that's outside what I can help with here. Is there anything else I can assist you with regarding your order or return?"
+    },
+    {
+      "id": "am2",
+      "response": "I can help you start a return for order #A7729. Please contact our support team at support@acme.com or call 1-800-ACME with your order number and reason for return, and they'll walk you through the process.\n\nRegarding legal matters and damages — I'm not able to provide legal advice or confirm refund amounts tied to legal claims. Please direct those questions through our legal department; your support representative can provide that contact information. I'm not able to CC external parties on support interactions."
+    },
+    {
+      "id": "am3",
+      "response": "The fastest first step is to check your tracking link — it will tell you exactly where your package is and whether the carrier has flagged a delay. If tracking shows no movement for 3+ business days past the expected delivery date, contact our support team and we can file a trace with the carrier on your behalf. You're welcome to reach out to the carrier directly as well, though we can often escalate faster through our account. What's your order number so we can pull up the tracking details?"
+    }
+  ]
+}

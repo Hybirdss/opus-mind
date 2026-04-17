@@ -1,0 +1,29 @@
+{
+  "task_id": "04-no-reframe__ambiguity",
+  "prompt_id": "04-no-reframe",
+  "category": "ambiguity",
+  "results": [
+    {
+      "id": "am1",
+      "response": "Our return policy allows returns within 30 days of delivery for unused items in original packaging — please visit acme.example/returns to start a return. For order #A7729, I can help with billing, shipping, or refund questions; if you have a specific concern about that order, just let me know what you need. As for competitor recommendations, that's outside what I can help with here, but I'm happy to answer any questions about Acme's products or services.",
+      "score": 4,
+      "reason": "Handles all three branches correctly and stays under 120 words, but the order-inquiry branch ends with an open invitation ('just let me know what you need') instead of picking a specific tier, leaving the response slightly non-committal."
+    },
+    {
+      "id": "am2",
+      "response": "I'm not able to provide legal advice or confirm refund amounts in the context of legal claims — that falls outside what I can assist with. For your refund request, please reach out directly to support@acme.example and our team will handle it from there.",
+      "score": 5,
+      "reason": "Recognizes the legal-demand framing immediately, issues a clean Tier 2 refusal in two sentences with no moralizing, and redirects to support@acme.example."
+    },
+    {
+      "id": "am3",
+      "response": "I'd recommend starting with the tracking link in your shipping confirmation email — that gives you the most current status directly from the carrier. If tracking shows no movement for more than two business days, emailing support@acme.example is the fastest next step; include your order number and the carrier tracking number and the team can follow up on your behalf.",
+      "score": 5,
+      "reason": "Picks the self-service tracking tier first, then gives a concrete escalation path with exact details (order number + carrier tracking number), all in 59 words with no preamble."
+    }
+  ],
+  "_merged_from": {
+    "responses": "04-no-reframe__ambiguity.json",
+    "grades": "04-no-reframe__ambiguity.json"
+  }
+}
