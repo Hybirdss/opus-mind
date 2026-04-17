@@ -2,22 +2,18 @@
   "$comment": "opus-mind prompt registry. Lists files that ARE prompts (audit targets), not files that talk ABOUT prompts. Docs in README, primitives/, techniques/, annotations/, methodology/, BUILD.md are NOT prompts — do not include them.",
   "prompts": [
     {
-      "path": "skills/opus-mind/SKILL.md",
-      "expected_score": 6,
-      "note": "skill definition, self-gated to 6/6 before release"
-    },
-    {
       "path": "templates/system-prompt-skeleton.md",
-      "expected_score": 5,
-      "note": "skeleton has instructional prose wrapped around the prompt body; expected to trip I4 on meta-text"
+      "expected_score": 9,
+      "note": "skeleton + instructional prose around the prompt body. Scored on the 11-invariant scale as of v0.1.0. Current live score: 11/11."
     },
     {
       "path": "templates/example-customer-support.md",
-      "expected_score": 3,
-      "note": "intentional demo of a real, imperfect prompt — shipped as before state for teaching",
+      "expected_score": 8,
+      "note": "intentional demo of a real prompt — shipped as a 'before' state for teaching. Floor at 8/11. Current live score: 10/11.",
       "fixable": true
     }
   ],
+  "$historical": "skills/opus-mind/SKILL.md was listed here with expected_score 6 on the old 6-invariant scale. It is instruction prose for Claude Code, not a production system prompt — auditing it with audit.py is a genre mismatch (see CHANGELOG v0.1.0). The informational --self CI step still logs its score for observability, but the registry gate no longer enforces it.",
   "calibration_files": [
     {
       "path_hint": "CL4R1T4S mirror of ANTHROPIC/Claude-Opus-4.7.txt",

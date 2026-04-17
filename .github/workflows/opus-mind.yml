@@ -36,11 +36,16 @@ jobs:
       - name: Install pytest
         run: pip install pytest
 
-      - name: Run pytest
-        run: python -m pytest skills/opus-mind/tests/ -v
+      - name: Run pytest (skill tests + top-level)
+        run: python -m pytest skills/opus-mind/tests/ tests/ -v
 
-      - name: Self-audit SKILL.md must be 6/6
-        run: python3 skills/opus-mind/scripts/audit.py --self
+      - name: Self-audit SKILL.md (informational — not a gate)
+        run: |
+          # SKILL.md is instruction prose for Claude Code, not a production
+          # system prompt. audit.py --self used to gate CI here; that was a
+          # genre mismatch and the gate was removed in v0.1.0. We still run
+          # the command so the score appears in logs for observability.
+          python3 skills/opus-mind/scripts/audit.py --self || true
 
       - name: Registry designated prompts must meet expected scores
         run: |
@@ -52,9 +57,10 @@ jobs:
               r = subprocess.run(['python3','skills/opus-mind/scripts/audit.py',p['path']],
                                  capture_output=True, text=True)
               score_line = next((l for l in r.stdout.splitlines() if l.startswith('score:')), '')
+              # audit prints 'score: N/11   verdict: X' now; take the numerator.
               score = int(score_line.split(':')[1].split('/')[0].strip()) if score_line else 0
               if score < p['expected_score']:
-                  bad.append(f'{p[\"path\"]}: {score}/6 < expected {p[\"expected_score\"]}')
+                  bad.append(f'{p[\"path\"]}: {score}/11 < expected {p[\"expected_score\"]}')
           if bad:
               print('\n'.join(bad))
               sys.exit(1)
@@ -63,6 +69,12 @@ jobs:
 
       - name: install-hook.sh bash syntax
         run: bash -n skills/opus-mind/scripts/install-hook.sh
+
+      - name: install-skill.sh bash syntax
+        run: bash -n skills/opus-mind/scripts/install-skill.sh
+
+      - name: critic.sh bash syntax
+        run: bash -n skills/opus-mind/scripts/critic.sh
 
       - name: opus-mind CLI help exits zero
         run: bash skills/opus-mind/scripts/opus-mind help
