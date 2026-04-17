@@ -129,6 +129,38 @@ case "$cmd" in
     lint)   dispatch_lint "$@" ;;
     boost)  dispatch_boost "$@" ;;
 
+    # Eval harness (requires Claude Code session for subagent dispatch)
+    eval)
+        sub="${1:-help}"
+        [ "$#" -gt 0 ] && shift || true
+        case "$sub" in
+            list-tasks)  exec "$py" "$here/../evals/eval_runner.py" --list-tasks ;;
+            render)      exec "$py" "$here/../evals/eval_runner.py" --render "$@" ;;
+            aggregate)   exec "$py" "$here/../evals/aggregate.py" ;;
+            audit-corpus)
+                for p in "$here/../evals/corpus/prompts/"*.md; do
+                    name=$(basename "$p" .md)
+                    "$py" "$here/audit.py" --json "$p" \
+                        > "$here/../evals/audits/${name}.json"
+                    echo "audited: $name"
+                done
+                ;;
+            help|--help|-h|"")
+                echo "opus-mind eval — subagent-powered measurement"
+                echo
+                echo "  list-tasks        emit JSON task list"
+                echo "  render <task>     emit subagent prompt for a task"
+                echo "  audit-corpus      run audit.py --json on each corpus prompt"
+                echo "  aggregate         join results + audits → REPORT.md"
+                echo
+                echo "Dispatch (between render and aggregate) runs inside a"
+                echo "Claude Code session via the Agent tool. See Flow D in"
+                echo "SKILL.md."
+                ;;
+            *) echo "unknown eval subcommand: $sub" >&2; exit 2 ;;
+        esac
+        ;;
+
     # Legacy top-level (pre-commit hook + v0.1 users)
     audit)       exec "$py" "$here/audit.py" "$@" ;;
     plan)        exec "$py" "$here/plan.py" "$@" ;;
