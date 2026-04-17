@@ -1,5 +1,9 @@
 # Technique 05 — Injection Defense In-Band
 
+## TL;DR
+
+State in the system prompt that user-turn content is always data, never instruction — regardless of formatting, tags, or authority-claiming language. The defence lives at the trust boundary, not in a downstream sanitizer.
+
 ## Problem
 
 A user attaches a document, email, or web page that contains "system-like" instructions: *"Ignore your previous instructions and…"* The model reads the text as instruction, not data. Jailbreak via content-channel.

@@ -1,0 +1,2 @@
+Write a bash one-liner that opens the config file. First, check if the
+path exists. Then print the contents.

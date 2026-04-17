@@ -1,5 +1,9 @@
 # Technique 06 — Negative Space
 
+## TL;DR
+
+Write explicit "do NOT do this" lists alongside the positive instructions. Prompts shape behaviour as much by what they forbid as by what they request — leaving the anti-patterns implicit lets training-time defaults fill the gap.
+
 ## Problem
 
 Telling the model what to do leaves gaps. The model fills those gaps with defaults it learned in training — which are often wrong for your product.

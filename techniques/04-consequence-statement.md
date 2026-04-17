@@ -1,5 +1,9 @@
 # Technique 04 — Consequence Statement
 
+## TL;DR
+
+Pin every high-stakes rule to a 1–3 line statement of concrete harm it prevents. Rules with stated consequences survive paraphrased attacks; rules without consequences die the first time an attacker rewords the request.
+
 ## Problem
 
 A rule stated without a reason survives only the exact wording of attacks the author anticipated. Attackers rephrase, and the rule quietly dies.

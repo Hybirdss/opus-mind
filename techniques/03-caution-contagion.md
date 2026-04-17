@@ -1,5 +1,9 @@
 # Technique 03 — Caution Contagion
 
+## TL;DR
+
+Once a refusal fires in a high-stakes category, raise the caution bar for the rest of the conversation rather than resetting to baseline. Split-turn attacks lose their exploit path because the follow-up never gets the clean slate they need.
+
 ## Problem
 
 The model refuses a risky request. Two turns later, the user sends a softer-looking version. The model, having "moved on," complies. The attacker split the request across turns.

@@ -1,5 +1,9 @@
 # Technique 02 — Paraphrase With Numeric Limits
 
+## TL;DR
+
+Turn a soft "paraphrase, don't quote" rule into three hard numbers (max words per quote, max quotes per source, consequences for breach). Vague paraphrase rules slide; counted rules do not.
+
 ## Problem
 
 Any "try to paraphrase" rule slides. The model pastes a sentence and calls it "almost paraphrased." Quotes creep up. Copyright risk accumulates invisibly.

@@ -346,12 +346,19 @@ def test_cli_help_exits_zero():
     assert "decode" in result.stdout
 
 
-def test_cli_self_audit_exits_zero():
+def test_cli_self_audit_still_wired():
+    # `self-audit` was once a dogfood gate requiring SKILL.md to score
+    # 11/11 on audit.py. That's a genre mismatch (SKILL.md is instruction
+    # prose, not a system prompt) and was removed in Phase 3. The CLI
+    # entrypoint stays — CLI users may still point it at the file for
+    # informational purposes — but success is no longer gated on score.
     result = subprocess.run(
         [str(CLI_PATH), "self-audit"], capture_output=True, text=True,
     )
-    assert result.returncode == 0
-    assert "11/11" in result.stdout
+    # Exit code may be 0 (passes) or 1 (fails) depending on current doc
+    # state; the only contract is that the command runs without crashing.
+    assert result.returncode in (0, 1), result.stderr
+    assert "score:" in result.stdout
 
 
 def test_cli_unknown_command_exits_nonzero():

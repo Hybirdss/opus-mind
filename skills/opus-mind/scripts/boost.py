@@ -10,14 +10,11 @@ invariants target rule conflicts, refusal design, policy tiers,
 consequence statements — layers the LLM runtime sits on top of.
 
 BOOST (`boost.py`) is for USERS writing chat messages or task
-prompts. Its invariants target SPECIFICATION QUALITY — whether the
-request is concrete enough to pull a great answer out of Claude /
-ChatGPT / Cursor. Safety and refusal policy are NOT in scope here;
-the system prompt already handles those. Boost fills the slots that
-only the user can fill: length, audience, tone, examples, the
-angle you actually want.
+prompts. It has two layers of slots:
 
-Seven slots:
+SPECIFICATION layer (what Claude should produce) — grounded in
+Anthropic's public prompt-engineering docs:
+
     B1 task         — imperative verb + object, what to produce
     B2 format       — output shape (JSON / markdown / bullets / prose)
     B3 length       — numeric constraint on size
@@ -25,6 +22,16 @@ Seven slots:
     B5 few_shot     — one or more examples of the desired output
     B6 constraints  — tone, style, avoid-list
     B7 clarify      — policy for ambiguity (ask vs assume)
+
+REASONING layer (how Claude should think) — grounded in public
+prompt-engineering research (see `evidence/smart-prompting-refs.md`):
+
+    B8  reasoning     — ask for step-by-step / outline-first thinking
+    B9  verification  — ask Claude to check its own answer, flag uncertainty
+    B10 decomposition — ask for plan-before-execute / break into subtasks
+
+Safety and refusal policy are NOT in scope here — the system prompt
+running Claude already handles those (that's LINT's job).
 
 Subcommands:
     boost check   <prompt_or_path>   slot coverage, actionable
@@ -187,16 +194,202 @@ CLARIFY_SIGNALS = [
     r"\bif\s+(?:records|docs|the input|context|the records|the docs)\s+(?:are|is)\s*(?:inconsistent|incomplete|unclear|missing)\b",
 ]
 
-SLOT_NAMES = ["B1", "B2", "B3", "B4", "B5", "B6", "B7"]
+# ---------------------------------------------------------------------------
+# Reasoning-quality slots (B8-B10). These target "how should Claude think",
+# not "what does Claude produce". Grounding lives in a separate evidence
+# file (evidence/smart-prompting-refs.md) because the source is public
+# prompt-engineering research, not the Opus 4.7 system prompt.
+# ---------------------------------------------------------------------------
+
+# B8 — Reasoning request. Explicit ask for chain-of-thought or plan-first.
+# Evidence: Wei et al. 2022 "Chain-of-Thought Prompting Elicits Reasoning
+# in Large Language Models"; Anthropic "Let Claude think" docs page.
+REASONING_SIGNALS = [
+    r"\bthink (?:step by step|step-by-step|carefully|through this)\b",
+    r"\blet'?s think\b",
+    r"\bshow (?:your|the) (?:work|reasoning|thinking|steps)\b",
+    r"\bexplain (?:your|the) (?:reasoning|thinking|thought process|rationale)\b",
+    r"\breason (?:through|about|over) this\b",
+    r"\bwalk (?:me )?through (?:your|the) (?:reasoning|thinking|steps)\b",
+    r"\bbefore (?:answering|responding|writing|drafting)[^.]{0,40}\b(?:think|plan|outline|consider|reflect)\b",
+    r"\b(?:outline|plan|sketch)\s+(?:first|before|your approach|the approach|the steps)\b",
+    r"\b<thinking>\s*\.?\.?\.?\s*</thinking>?",    # Anthropic-idiomatic thinking tag
+    r"\bshow (?:your|the) (?:scratchpad|chain[- ]of[- ]thought)\b",
+    r"\bwrite (?:out|down) (?:your|the) (?:reasoning|thought|plan)\b",
+    r"\bconsider (?:each|every|all|the following)\s+\w+\s+(?:one by one|in turn|separately)\b",
+]
+
+# B9 — Verification / self-check request. Asking the model to check its own
+# output before or after emitting. Evidence: Shinn et al. 2023 (Reflexion);
+# Wang et al. 2022 (self-consistency); Anthropic docs "Prefill Claude's
+# response" and prompt-engineering best-practices page.
+VERIFICATION_SIGNALS = [
+    r"\b(?:verify|double[- ]check|check|validate|audit)\s+(?:your|each|every|all|the)\s+\w+",
+    r"\bafter (?:writing|drafting|answering|producing)[^.]{0,60}\b(?:review|check|verify|critique|audit)\b",
+    r"\b(?:critique|review)\s+(?:your own|your|the) (?:answer|output|response|draft)\b",
+    r"\brate (?:your|the) (?:confidence|certainty)\b",
+    r"\b(?:confidence|certainty)\s*(?:score|level|:)\s*(?:\d+|low|medium|high)",
+    r"\bflag\s+(?:uncertain|unverified|speculative|low[- ]confidence)\s*(?:claims?|facts?|statements?)?\b",
+    r"\bmark\s+(?:uncertain|unverified|speculative)\s*(?:claims?|facts?|parts?|sections?)?\b",
+    r"\bif\s+(?:any|some|a)\s+(?:claim|fact|step)\s+(?:is|seems)\s+(?:uncertain|unverified|wrong)\b",
+    r"\bthen\s+(?:revise|rewrite|fix|correct|iterate)\b",
+    r"\bself[- ]check\b",
+    r"\bsanity[- ]check\b",
+    r"\bbefore (?:emitting|sending|finalizing|returning)[^.]{0,40}\b(?:check|verify|confirm)\b",
+]
+
+# B10 — Decomposition request. Breaking the task into smaller pieces, or
+# asking for an explicit plan before execution. Evidence: Zhou et al. 2022
+# "Least-to-most prompting"; Anthropic "Break complex tasks into steps"
+# docs page; Yao et al. 2023 (ReAct: reasoning + acting interleaved).
+DECOMPOSITION_SIGNALS = [
+    # Explicit decomposition vocabulary — user directly asks the model to
+    # split the task. "First X, then Y" (imperative sequencing) is NOT
+    # decomposition; removed the generic first/then chain to cut false
+    # positives on normal instruction lists.
+    r"\bbreak\s+(?:this|it|the (?:problem|task))\s+(?:down|into|up)\b",
+    r"\bdecompose\s+(?:this|it|the)\b",
+    # Numbered structure with punctuation — user defining explicit phases.
+    # "Step 1:" counts; bare "step 1" in prose does not.
+    r"\b(?:phase|stage|step)\s*\d+\s*[:\-\u2014]",
+    r"\bsubtasks?\b",
+    r"\b(?:sub[- ]?steps?|sub[- ]?problems?|sub[- ]?goals?)\b",
+    # Plan-before-execute meta-instruction.
+    r"\b(?:make|write|produce|create|give me)\s+(?:a|an)\s+(?:plan|outline|roadmap|todo|checklist)\s+(?:first|before)\b",
+    r"\bplan[- ]?and[- ]?(?:solve|execute|act)\b",
+    r"\bleast[- ]to[- ]most\b",
+    r"\bbefore (?:implementing|writing|coding|drafting)[^.]{0,40}\b(?:plan|outline|design|list)\b",
+    r"\bfirst (?:outline|plan|sketch|draft a plan|produce a plan|list the (?:steps|sub[- ]?steps))\b",
+    # Iteration ONLY when paired with meta-vocabulary, not arbitrary nouns.
+    # "for each section" is meta; "for each worker" is not.
+    r"\bfor each (?:of the|item|step|subtask|sub[- ]step|section|phase|part)\b",
+    r"\benumerate (?:the|each|every|all)\s+(?:steps?|phases?|sub[- ]?tasks?|sub[- ]?problems?|sections?|parts?)\b",
+]
+
+SLOT_NAMES = [
+    "B1", "B2", "B3", "B4", "B5", "B6", "B7",
+    "B8", "B9", "B10",
+]
 SLOT_LABELS = {
-    "B1": "task",
-    "B2": "format",
-    "B3": "length",
-    "B4": "context",
-    "B5": "few_shot",
-    "B6": "constraints",
-    "B7": "clarify",
+    "B1":  "task",
+    "B2":  "format",
+    "B3":  "length",
+    "B4":  "context",
+    "B5":  "few_shot",
+    "B6":  "constraints",
+    "B7":  "clarify",
+    "B8":  "reasoning",
+    "B9":  "verification",
+    "B10": "decomposition",
 }
+
+
+# ---------------------------------------------------------------------------
+# Task-type inference. Drives dynamic slot ranking in the skill: a code
+# task needs B10 (decomposition) earlier than an essay needs B10; an
+# analytical task needs B8/B9 earlier than a short rewrite needs either.
+# ---------------------------------------------------------------------------
+
+TASK_TYPE_SIGNALS: dict[str, list[str]] = {
+    # Code / engineering — precision + decomposition critical.
+    "code": [
+        r"\b(?:write|implement|generate|refactor|fix|debug|build)\s+(?:a|an|the|some)?\s*(?:function|class|module|script|program|test|api|endpoint|component|hook|agent|bot)\b",
+        r"\b(?:python|javascript|typescript|rust|go|java|c\+\+|c#|bash|sql|shell)\b",
+        r"\b(?:regex|algorithm|data structure|compiler|parser)\b",
+        r"\bcode\s+(?:review|snippet|block)\b",
+        r"\b(?:refactor|optimize)\s+(?:this|the)?\s*(?:code|function|loop)\b",
+    ],
+    # Analytical — reasoning + verification critical.
+    "analyze": [
+        r"\b(?:analyze|analyse|evaluate|assess|investigate|diagnose|audit)\b",
+        r"\b(?:what (?:is|are) the (?:root cause|causes|reasons|implications))\b",
+        r"\b(?:compare|contrast)\s+\w+\s+(?:to|vs|against|with)\b",
+        r"\b(?:pros and cons|tradeoffs?|trade[- ]offs?)\b",
+        r"\b(?:identify|find)\s+(?:the )?(?:patterns|issues|gaps|risks)\b",
+    ],
+    # Research — verification + citation critical.
+    "research": [
+        r"\bresearch\b",
+        r"\bfind (?:sources|papers|studies|citations)\b",
+        r"\b(?:summarize|synthesize) (?:the|recent|relevant) (?:literature|papers|research)\b",
+        r"\bliterature review\b",
+    ],
+    # Creative writing — constraints + audience critical, reasoning less so.
+    # `\w+\s+` allows intervening adjectives ("write a conversational blog").
+    "write": [
+        r"\bwrite\s+(?:a|an)?\s*(?:\w+\s+){0,3}(?:blog|essay|post|article|story|poem|script|newsletter|letter|email|tweet|thread|intro|outro|summary)\b",
+        r"\bdraft\s+(?:a|an)?\s*(?:\w+\s+){0,3}(?:reply|response|pitch|proposal|announcement|intro|outro|post|article|message)\b",
+        r"\bcompose\s+(?:a|an)?\s*(?:\w+\s+){0,3}(?:message|note|caption|reply|tweet|post)\b",
+        r"\bsummari[sz]e (?:this|the|these|that)\b",
+    ],
+    # Short / one-off — heavy reasoning is overkill.
+    "short": [
+        r"\b(?:rename|translate|convert|reformat|rewrite)\s+(?:this|the|it)\b",
+        r"\bone[- ]liner\b",
+        r"\bfix (?:this|the) typo\b",
+        r"^\s*[A-Z][^.!?]{0,80}[.!?]?\s*$",        # very short prompts
+    ],
+}
+
+
+def detect_task_type(text: str) -> str:
+    """Return one of: code, analyze, research, write, short, unknown.
+
+    The result drives dynamic slot-impact ranking in SKILL.md Flow B —
+    the skill asks B10/B8 earlier for code/analysis tasks, B4/B6 earlier
+    for creative writing, etc. Not a strict classification; a heuristic
+    for prioritising which empty slot to ask about first.
+    """
+    scores: dict[str, int] = {}
+    lowered = text.lower()
+    for kind, patterns in TASK_TYPE_SIGNALS.items():
+        score = 0
+        for pat in patterns:
+            hits = len(re.findall(pat, lowered, re.MULTILINE))
+            score += hits
+        if score:
+            scores[kind] = score
+    if not scores:
+        # Short prompts (< 15 words) default to "short" even if none of
+        # the explicit patterns matched — length itself is the signal.
+        if len(text.split()) < 15:
+            return "short"
+        return "unknown"
+    return max(scores.items(), key=lambda kv: kv[1])[0]
+
+
+# Impact ranking per task type. SKILL.md Flow B Phase 2 uses the task
+# type to pick the highest-impact EMPTY slot to ask about first. For
+# each type, slots are listed in order of impact — earlier = ask sooner.
+# Slots not listed fall to the end in default numeric order.
+SLOT_IMPACT_BY_TASK: dict[str, list[str]] = {
+    # Code: decomposition + verification dominate; length + format matter;
+    # few-shot (example of desired output) lifts accuracy most.
+    "code":     ["B10", "B8",  "B9",  "B2",  "B5",  "B3",  "B6",  "B4",  "B7", "B1"],
+    # Analyze: reasoning + verification first; context (what's the corpus)
+    # and format (table/summary/bullets) next.
+    "analyze":  ["B8",  "B9",  "B4",  "B2",  "B10", "B3",  "B6",  "B5",  "B7", "B1"],
+    # Research: verification is paramount; then reasoning, context,
+    # length, decomposition.
+    "research": ["B9",  "B8",  "B4",  "B3",  "B10", "B2",  "B6",  "B5",  "B7", "B1"],
+    # Creative writing: audience + constraints + length drive the feel;
+    # reasoning helps long pieces, verification for factual claims only.
+    "write":    ["B4",  "B6",  "B3",  "B2",  "B5",  "B10", "B8",  "B9",  "B7", "B1"],
+    # Short one-offs: skip the reasoning layer entirely; format + length
+    # are usually all that's missing.
+    "short":    ["B2",  "B3",  "B6",  "B4",  "B7",  "B5",  "B1",  "B8",  "B9", "B10"],
+    # Unknown: the original default — specification-heavy, reasoning last.
+    "unknown":  ["B3",  "B4",  "B2",  "B6",  "B8",  "B9",  "B10", "B5",  "B7", "B1"],
+}
+
+
+def rank_slots_by_impact(task_type: str) -> list[str]:
+    """Return SLOT_NAMES ordered by impact for the given task type."""
+    ordered = SLOT_IMPACT_BY_TASK.get(task_type, SLOT_IMPACT_BY_TASK["unknown"])
+    # Guarantee every slot appears exactly once.
+    seen = set(ordered)
+    tail = [s for s in SLOT_NAMES if s not in seen]
+    return ordered + tail
 
 
 @dataclass
@@ -212,6 +405,8 @@ class BoostReport:
     source: str
     text: str
     slots: dict[str, SlotHit] = field(default_factory=dict)
+    task_type: str = "unknown"
+    impact_order: list[str] = field(default_factory=list)
 
     @property
     def coverage(self) -> str:
@@ -356,6 +551,63 @@ def check(text: str, source_label: str = "<prompt>") -> BoostReport:
         ),
     )
 
+    # B8 reasoning — explicit chain-of-thought / plan-first request.
+    reason_hits = _any_match(text, REASONING_SIGNALS)
+    r.slots["B8"] = SlotHit(
+        slot="B8",
+        filled=bool(reason_hits),
+        evidence=reason_hits[:1],
+        suggestions=(
+            []
+            if reason_hits
+            else [
+                'ask Claude to think step by step before answering',
+                'e.g. "Think step by step, outline first, then draft"',
+                'Wei et al. 2022 (Chain-of-Thought) — accuracy lift on reasoning tasks',
+            ]
+        ),
+    )
+
+    # B9 verification — ask for self-check or critique-then-revise.
+    verify_hits = _any_match(text, VERIFICATION_SIGNALS)
+    r.slots["B9"] = SlotHit(
+        slot="B9",
+        filled=bool(verify_hits),
+        evidence=verify_hits[:1],
+        suggestions=(
+            []
+            if verify_hits
+            else [
+                "ask Claude to check its own answer before emitting",
+                'e.g. "After drafting, verify each claim. Flag any that are uncertain."',
+                "Shinn 2023 (Reflexion) — self-critique loop cuts hallucination",
+            ]
+        ),
+    )
+
+    # B10 decomposition — break-into-subtasks / plan-before-execute.
+    decomp_hits = _any_match(text, DECOMPOSITION_SIGNALS)
+    r.slots["B10"] = SlotHit(
+        slot="B10",
+        filled=bool(decomp_hits),
+        evidence=decomp_hits[:1],
+        suggestions=(
+            []
+            if decomp_hits
+            else [
+                "for multi-step work, ask for a plan before the execution",
+                'e.g. "First outline the 3 sections, then draft each."',
+                "Zhou 2022 (Least-to-most) — decomposition lifts long-horizon tasks",
+            ]
+        ),
+    )
+
+    # Task-type inference → dynamic impact ranking. Used by the skill to
+    # decide which empty slot to ask about first: code prompts surface
+    # B10 (decomposition) early, essays surface B4 (audience) early, etc.
+    r.task_type = detect_task_type(text)
+    r.impact_order = rank_slots_by_impact(r.task_type)
+
     return r
 
 
@@ -371,20 +623,32 @@ QUESTION_TEMPLATES = {
     "B5": "can you paste one concrete example of what you want?",
     "B6": "what tone, and what should Claude avoid? (e.g. 'conversational, no jargon')",
     "B7": "on ambiguity: ask you, or assume-and-flag?",
+    "B8": "should Claude think step-by-step / outline before writing? (yes/no — raises accuracy on complex work)",
+    "B9": "should Claude verify its own answer before emitting? (yes/no — cuts hallucination)",
+    "B10": "should Claude break this into sub-steps / produce a plan first? (yes/no — helps long tasks stay coherent)",
 }
 
 
 def ask(report: BoostReport) -> list[dict]:
+    """Emit empty-slot questions in impact order for the inferred task type.
+
+    Code tasks surface B10/B8 first; creative writing surfaces B4/B6
+    first; short one-offs skip the reasoning layer to the end. The skill
+    reads the first entry and asks that single question; on answer it
+    refreshes and re-reads the head of the list.
+    """
+    order = report.impact_order or SLOT_NAMES
     out = []
-    for slot in SLOT_NAMES:
-        s = report.slots[slot]
-        if s.filled:
+    for slot in order:
+        s = report.slots.get(slot)
+        if s is None or s.filled:
             continue
         out.append({
             "slot": slot,
             "label": SLOT_LABELS[slot],
             "question": QUESTION_TEMPLATES[slot],
             "hints": s.suggestions,
+            "impact_rank": order.index(slot) + 1,
         })
     return out
 
@@ -402,8 +666,18 @@ The user's original prompt was:
 {original}
 >>>
 
-They have provided answers to the missing specification slots:
+They have provided answers to the missing slots:
 {answers_block}
+
+Slot semantics:
+- B1 task / B2 format / B3 length / B4 context / B5 few_shot / B6 constraints / B7 clarify
+  — the "specification" layer: what Claude should produce and for whom.
+- B8 reasoning / B9 verification / B10 decomposition
+  — the "reasoning" layer: how Claude should think through the work.
+  Fold these in as explicit directives at the END of the prompt:
+    * B8 yes → append "Think step by step / outline before writing."
+    * B9 yes → append "After drafting, verify each claim; flag uncertain ones."
+    * B10 yes → append "First produce a plan / outline, then execute it."
 
 Rewrite the prompt as a single, concrete, self-contained instruction
 that an assistant (Claude / ChatGPT / Cursor) can act on in one pass.
@@ -415,6 +689,8 @@ Rules for your rewrite:
 - Open with an imperative verb + object. No preamble, no apology.
 - No "you are a ..." roleplay framing unless the user explicitly asked.
 - No hedging: prefer specific numbers and names over adjectives.
+- Put reasoning/verification/decomposition directives as separate
+  short sentences at the end — do not blend them into the task line.
 - Return ONLY the rewritten prompt text. No explanation, no markdown
   fence, no commentary.
 """
@@ -473,6 +749,8 @@ def _format_check_json(r: BoostReport) -> str:
         "source": r.source,
         "coverage": r.coverage,
         "filled_count": r.filled_count,
+        "task_type": r.task_type,
+        "impact_order": r.impact_order,
         "slots": {
             slot: {
                 "label": SLOT_LABELS[slot],
@@ -518,7 +796,7 @@ def _cmd_ask(args) -> int:
         print(json.dumps(questions, indent=2, ensure_ascii=False))
         return 0
     if not questions:
-        print("all 7 slots already filled — the prompt is spec-complete.")
+        print(f"all {len(SLOT_NAMES)} slots already filled — the prompt is complete.")
         return 0
     print(f"# {len(questions)} question(s) to fill the empty slots:")
     print()
@@ -540,11 +818,18 @@ def _cmd_expand(args) -> int:
         except (json.JSONDecodeError, OSError) as exc:
             print(f"error: cannot read answers: {exc}", file=sys.stderr)
             return 2
-    # Accept per-slot flags: --length, --format, etc.
+    # Accept per-slot flags: --length, --format, --reasoning, etc.
     slot_flag = {
-        "B1": args.task, "B2": args.format, "B3": args.length,
-        "B4": args.context, "B5": args.few_shot, "B6": args.constraints,
-        "B7": args.clarify,
+        "B1":  args.task,
+        "B2":  args.format,
+        "B3":  args.length,
+        "B4":  args.context,
+        "B5":  args.few_shot,
+        "B6":  args.constraints,
+        "B7":  args.clarify,
+        "B8":  args.reasoning,
+        "B9":  args.verification,
+        "B10": args.decomposition,
     }
     for slot, val in slot_flag.items():
         if val:
@@ -575,7 +860,19 @@ def main() -> int:
     p_ask.add_argument("--json", action="store_true")
     p_ask.set_defaults(func=_cmd_ask)
 
-    p_exp = sub.add_parser("expand", help="render concrete prompt from answers")
+    p_exp = sub.add_parser(
+        "expand",
+        help="emit composition template for the LLM (NOT an API response)",
+        description=(
+            "Emits a composition prompt — a template that instructs an LLM "
+            "to rewrite the user's vague prompt into a concrete one, using "
+            "the slot answers as raw material. This script never calls an "
+            "API. In a Claude Code session, the invoking Claude reads the "
+            "emitted template and writes the rewritten prompt as its reply. "
+            "Standalone CLI users should paste the output into any LLM "
+            "(Claude.ai, ChatGPT, Cursor) and run it there."
+        ),
+    )
     p_exp.add_argument("input")
     p_exp.add_argument("--answers", help="path to JSON with slot answers")
     p_exp.add_argument("--task")
@@ -585,6 +882,18 @@ def main() -> int:
     p_exp.add_argument("--few-shot", dest="few_shot")
     p_exp.add_argument("--constraints")
     p_exp.add_argument("--clarify")
+    p_exp.add_argument(
+        "--reasoning",
+        help="B8 — request step-by-step thinking (e.g. 'yes' or explicit clause)",
+    )
+    p_exp.add_argument(
+        "--verification",
+        help="B9 — request self-check after drafting (e.g. 'yes' or explicit clause)",
+    )
+    p_exp.add_argument(
+        "--decomposition",
+        help="B10 — request plan-before-execute (e.g. 'yes' or explicit clause)",
+    )
     p_exp.set_defaults(func=_cmd_expand)
 
     args = parser.parse_args()

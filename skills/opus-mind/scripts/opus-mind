@@ -1,5 +1,21 @@
 #!/usr/bin/env bash
-# opus-mind — two products, one CLI.
+# opus-mind — CLI escape hatch for the Claude Code skill.
+#
+# PRIMARY UX: Invoke the skill inside Claude Code. Claude reads SKILL.md,
+# runs these scripts with `--json` under the hood, and synthesizes a
+# prose response with line refs and a ranked action plan. That's the
+# product.
+#
+# This bash wrapper is the SECONDARY surface — it exists for:
+#   - the git pre-commit hook (install-hook.sh wires it into .git/hooks)
+#   - CI gates (GitHub Actions, Jenkins, etc.)
+#   - standalone CLI users who are not inside Claude Code and want a
+#     quick score without reading JSON
+#
+# If you are inside Claude Code, DO NOT run this by hand. The skill
+# knows how to orchestrate the helpers better than a script can.
+#
+# Two products:
 #
 #   LINT  — for builders (CLAUDE.md / SKILL.md / .cursorrules / chatbot system prompts)
 #           safety, rule conflicts, policy tier design, refusal structure
@@ -12,11 +28,11 @@
 #   opus-mind lint plan        <path>                     required-primitive TODO
 #   opus-mind lint fix         <path> [--add NAMES]       deterministic rewrite / inject
 #   opus-mind lint decode      <path>                     label present primitives
-#   opus-mind lint self-audit
+#   opus-mind lint self-audit                             informational (no longer gated)
 #
 #   opus-mind boost check      <prompt_or_path>           slot coverage report
 #   opus-mind boost ask        <prompt_or_path>           questions for missing slots
-#   opus-mind boost expand     <prompt_or_path> [flags]   concrete prompt (LLM)
+#   opus-mind boost expand     <prompt_or_path> [flags]   emit composition prompt
 #
 # Legacy top-level (backward compat with v0.1 and the pre-commit hook):
 #   opus-mind audit / plan / fix / decode / draft / symptom / crosscheck / self-audit

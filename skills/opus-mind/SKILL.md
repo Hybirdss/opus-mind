@@ -1,283 +1,428 @@
 ---
 name: opus-mind
-description: Two products in one skill. LINT — audit CLAUDE.md / SKILL.md / .cursorrules / AGENTS.md / chatbot system prompts against 11 structural invariants (decision ladders, reframe guards, tier labels, consequences). BOOST — coach a user's single prompt against 7 specification slots (task, format, length, audience, examples, constraints, clarify). Fires on system-prompt work, agent persona editing, prompt-injection concerns, AND on one-liner prompts the user wants improved. Replaces vague adjectives with numbers, adds structural primitives via fix --add, and for user prompts emits a concrete LLM-renderable expansion. Primitives sourced from the leaked 1408-line Claude Opus 4.7 system prompt (CL4R1T4S mirror). Never emits prose opinion.
+description: Use when the user edits CLAUDE.md / AGENTS.md / .cursorrules / GEMINI.md / **/SKILL.md or any chatbot system prompt (LINT), OR when the user wants to tighten a vague one-shot prompt before sending it to an LLM (BOOST). Fires on audit/score/review/fix requests, on symptoms like refuse-relent, narration leak, rule conflict, and on "help me improve this prompt" messages.
+allowed-tools: [Bash, Read, Grep, Glob, AskUserQuestion]
+argument-hint: "[path to prompt file, inline prompt text, or '-' for stdin]"
 ---
 
 # opus-mind
 
-Compile a prompt like you compile a program. Two products, one skill:
+Two products, one skill. **LINT** audits production system prompts
+against 11 structural invariants reverse-engineered from the leaked
+Claude Opus 4.7 system prompt. **BOOST** coaches a user's single
+request against 10 slots — 7 for specification quality and 3 for
+reasoning quality (chain-of-thought, verification, decomposition).
 
-**LINT** — for BUILDERS writing production system prompts (CLAUDE.md, SKILL.md, .cursorrules, AGENTS.md, chatbot system prompts). 11 structural invariants. Gates commits.
+Python helpers are deterministic (regex, counts, string templates).
+Synthesis — composing rewrites, applying semantic review, judging
+domain context — is done by you, the Claude running this session.
+No API key, no extra cost, no shell-out.
 
-**BOOST** — for USERS writing a single prompt to Claude / ChatGPT / Cursor. 7 specification slots. Coaches the prompter.
+## When to use
 
-The two do not overlap. LINT audits the agent **system layer** (safety, rule conflicts, refusal design — stuff the LLM runtime sits on top of). BOOST audits the **user layer** (task clarity, length, audience, tone — stuff only the user can fill). Output from both is structured blocks, every claim carries a line ref or a primitive pointer.
+- User edits or audits: `CLAUDE.md`, `AGENTS.md`, `.cursorrules`,
+  `GEMINI.md`, `**/SKILL.md`, `system-prompt*.md`, or a chatbot
+  system prompt → **LINT**.
+- User pastes a vague one-shot request meant for Claude / ChatGPT /
+  Cursor and wants it concrete → **BOOST**.
+- User describes a symptom — refuse-relent, narration leak, rule
+  conflict, adjective drift, jailbreak, injection, tool-call drift
+  → **LINT Debug**.
 
-{contract}
-Every response from this skill obeys:
-- Zero Tier-1 slop words (full list at `scripts/audit.py` SLOP_TIER1).
-- Zero hedge words (full list at `scripts/audit.py` HEDGES).
-- Zero narration phrases (full list at `scripts/audit.py` NARRATION).
-- Every claim anchors to `source/opus-4.7.txt:L###` or `references/primitives/NN.md`.
-- XML blocks or decision ladders for any routing decision.
-- 11/11 score on `scripts/audit.py --self` before emit.
-{/contract}
+## When NOT to use
 
-{architecture}
-Python scripts in this skill are DETERMINISTIC — regex, counts, slot
-detection, string templates. They never call an LLM. They never read
-ANTHROPIC_API_KEY. Exit codes are reproducible across runs.
+- The target file has fewer than 3 directives or fewer than 10 lines.
+  Run audit anyway and quote the `THIN` verdict back at the user
+  verbatim; do not invent coverage.
+- The user wants a generic "make this better" with no file, no
+  pasted text, and no repo context. Ask for the concrete prompt
+  first.
+- The request is about Claude's own safety policy (e.g. "why did
+  Claude refuse X?"). Point to Anthropic docs. This skill is about
+  prompt structure, not safety interpretation.
 
-LLM synthesis — composing expanded user prompts, applying crosscheck
-reviews, judging semantic conflicts — is done by Claude (this model, in
-this Claude Code session). When a Python script emits a composition or
-review prompt, that prompt is FOR YOU to execute right here in the
-conversation. Do not shell out to an API. Do not ask the user for a key.
-Read the emitted prompt, apply its rules, emit the result as your next
-message.
+## Routing — first-match-wins, stop at match
 
-Fails if violated: any skill run that prompts the user for an API key,
-or any script flag that calls out to a model. Report the gap instead of
-routing around it.
-{/architecture}
+1. Input is a file path ending in `.md` / `.cursorrules`, or an
+   inline system prompt (contains `{role}`, `Tier N`, `refuse`,
+   `decline`, or directive-heavy content) → **Flow A: LINT**.
+2. Input is a short natural-language request ("write me X", "help
+   with Y", a one-liner the user plans to send to an assistant)
+   → **Flow B: BOOST**.
+3. Input is a symptom only — no file, no prompt to rewrite, just
+   "my bot keeps doing X" → **Flow C: Debug**.
 
-## Router — first-match-wins, stop at match
+Do not mix flows in a single turn. Pick one, finish it, stop.
 
-{routing}
-Step 0 — User pastes or points to a one-liner / short request they want
-         to send to an AI (Claude chat, ChatGPT, Cursor) and wants it
-         "better"?
-         → run BOOST flow.
-Step 1 — User is editing / authoring / auditing a SYSTEM prompt file
-         (CLAUDE.md, AGENTS.md, .cursorrules, GEMINI.md, SKILL.md, or
-         a chatbot system prompt)?
-         → run LINT flow (sub-routes: audit / plan / fix / decode).
-Step 2 — User describes a symptom (refuse-relent, narration leak,
-         rule conflict, adj drift, jailbreak, injection, tool drift)?
-         → run LINT Debug flow.
-Step 3 — User authors a new system prompt from scratch?
-         → run LINT Skeleton flow.
-{/routing}
+## Data contracts (JSON you will parse)
 
-Flows do not mix. Pick one, finish, stop. Mixing drops the first-match-wins property (`references/primitives/02-decision-ladders.md`, Opus 4.7 source L515-537). The BOOST vs LINT discriminator is specifically: **is this a prompt a user SENDS, or a prompt a builder WRITES INTO a file**? Chat messages and one-off requests are BOOST. Committed files are LINT.
+Every Python helper supports `--json`. The skill treats these
+schemas as the source of truth — keys are stable, additions safe,
+removals or renames require a schema version bump.
 
-## BOOST flow
+### `audit.py --json <path>`
 
-Input: a prompt the user will send to an assistant.
-
-1. Run `python3 skills/opus-mind/scripts/boost.py check <prompt_or_path>`.
-2. Read the 7-slot coverage board. Coverage N/7 is the score, but the real product is the empty slots.
-3. For empty slots, run `boost ask` to surface the exact questions the user should answer.
-4. Ask the user those questions in chat and wait for answers.
-5. Run `boost expand <prompt_or_path> --<slot> "<answer>" ...` (or pass `--answers answers.json`). The script prints a composition prompt. YOU — the Claude driving this session — read that prompt, apply its rules, and emit the rewritten user prompt as your next message. Do not call an API. Do not ask for an API key. The Python step is deterministic; the synthesis is yours.
-
-Output block shape:
-
-```
-{boost}
-  source: <inline or path>
-  coverage: 4/7
-  empty: [B2, B3, B5]
-  filled: [B1, B4, B6, B7]
-{/boost}
-{next_step}
-  ask → skills/opus-mind/scripts/boost.py ask "<prompt>"
-  expand → skills/opus-mind/scripts/boost.py expand "<prompt>" --length ... --format ...
-{/next_step}
+```json
+{
+  "schema_version": "1.0",
+  "path": "CLAUDE.md",
+  "line_count": 220,
+  "score": "8/11",
+  "structural_health": "8/11",
+  "verdict": "BORDERLINE",
+  "thin_reason": null,
+  "placeholder_count": 0,
+  "pass": { "I1_reduce_interpretation": true, "I2_no_rule_conflicts": false, "..." : "..." },
+  "metrics": { "hedges": 2, "directives": 26, "...": "..." },
+  "findings": [
+    { "invariant": "I2", "line": 0, "snippet": "", "issue": "26 directives, 0 ladders", "fix_pointer": "references/primitives/02-decision-ladders.md" }
+  ]
+}
 ```
 
-BOOST does NOT enforce refusal / safety / anti-narration — the system prompt the user's assistant runs on already handles that layer. Adding those rules to a user-sent prompt is duplication.
+Key fields to read: `verdict` (THIN / POOR / BORDERLINE / GOOD),
+`pass` (per-invariant boolean map), `findings` (per-violation
+details with line refs), `placeholder_count` (skeleton markers
+left unfilled).
 
-## LINT Audit flow
+### `plan.py --json <path>`
 
-Input: a prompt file path (CLAUDE.md / SKILL.md / .cursorrules / ...).
-
-1. Run `python3 skills/opus-mind/scripts/audit.py <path>`.
-2. Read the 11/11 invariant board. Zero interpretation — the script is the judge.
-3. For each failing invariant, open the fix_pointer file under `references/`.
-4. Emit a `{findings}` block keyed by line number. Zero prose commentary.
-
-Output block shape:
-```
-{audit}
-  path: <file>
-  score: 8/11
-  fail: [I1, I4, I9]
-  metrics:
-    hedge_density: 0.31
-    narration: 2
-    number_density: 0.12
-    directives: 18
-{/audit}
-{findings}
-  -- [I1] hedge_density 0.31 > 0.25 — 6 hedges / 18 directives.
-         fix: references/primitives/03-hard-numbers.md
-  L92 [I4] "<narration-phrase>" — narration leak.
-         fix: references/primitives/08-anti-narration.md
-{/findings}
+```json
+{
+  "path": "CLAUDE.md",
+  "score": "8/11",
+  "domain": { "has_tools": true, "has_refusals": true, "is_long": true },
+  "required_invariants": ["I1_...", "I2_...", "..."],
+  "missing_required": ["I2_no_rule_conflicts", "I9_self_check"],
+  "passing_required": ["I1_...", "..."],
+  "primitive_detections": { "01": "high", "02": "absent", "..." : "..." }
+}
 ```
 
-Refactor only when the user requests. An audit is not a rewrite. For targeted rewriting, use `fix.py --add <primitive>` to inject missing skeletons.
+`missing_required` is what you rank for improvement.
 
-## LINT Debug flow
+### `boost.py check --json <prompt>`
 
-Input: a symptom sentence. Output: primitive pointer plus the 1–2 source lines that govern it.
-
-{symptom_table}
-Symptom                                   → Read these files
-refuse-then-relent                         → primitives/09, techniques/03 (caution contagion)
-rule conflict, model picks vibes           → primitives/02, methodology I2 (decision ladders)
-adj drift under pressure                   → primitives/03, methodology I1 (hard numbers)
-over-helpful machinery narration           → primitives/08, methodology I4
-model rationalizes around rule             → primitives/07, techniques/07 (category match)
-user turn impersonates system              → primitives/10, techniques/05 (injection defense)
-model denies real capability               → primitives/11 (capability disclosure)
-rule survives rephrase attack              → techniques/04 (consequence statement)
-refusal reframed into compliance           → primitives/09 (reframe-as-signal, L33)
-surprising behavior not forbidden          → techniques/06 (negative space)
-safety loses to user request               → primitives/12 (hierarchical override)
-rule set everywhere, unscoped              → primitives/01 (namespace blocks)
-{/symptom_table}
-
-This table lives in full form at `references/methodology.md` under "failure-mode taxonomy". It is the single diagnostic surface for opus-mind. Do not invent new symptom labels — map the user's complaint onto a row.
-
-Output block shape:
-```
-{debug}
-  symptom: refuse-then-relent
-  primitive: 09-reframe-as-signal
-  technique: 03-caution-contagion
-  anchor: source/opus-4.7.txt:L33, L36
-  read: references/primitives/09-reframe-as-signal.md
-        references/techniques/03-caution-contagion.md
-{/debug}
+```json
+{
+  "source": "<inline>",
+  "coverage": "1/10",
+  "filled_count": 1,
+  "slots": {
+    "B1":  { "label": "task",          "filled": true,  "evidence": ["write a"] },
+    "B2":  { "label": "format",        "filled": false, "evidence": [] },
+    "B3":  { "label": "length",        "filled": false, "evidence": [] },
+    "B4":  { "label": "context",       "filled": false, "evidence": [] },
+    "B5":  { "label": "few_shot",      "filled": false, "evidence": [] },
+    "B6":  { "label": "constraints",   "filled": false, "evidence": [] },
+    "B7":  { "label": "clarify",       "filled": false, "evidence": [] },
+    "B8":  { "label": "reasoning",     "filled": false, "evidence": [] },
+    "B9":  { "label": "verification",  "filled": false, "evidence": [] },
+    "B10": { "label": "decomposition", "filled": false, "evidence": [] }
+  }
+}
 ```
 
-## LINT Policy flow — CLAUDE.md, AGENTS.md, .cursorrules, SKILL.md
+Slots split into two layers:
+- **Specification** (B1-B7): what Claude should produce and for whom.
+  Grounded in Anthropic public prompt-engineering docs.
+- **Reasoning** (B8-B10): how Claude should think. Grounded in
+  `evidence/smart-prompting-refs.md` (Wei 2022 CoT, Shinn 2023
+  Reflexion, Zhou 2022 Least-to-most, Anthropic "Let Claude think").
 
-A rules file is a system prompt with a different entry point. Same bar applies. Specific moves:
+### `decode.py --json <path>` and `symptom_search.py --json <query>`
 
-{policy}
-- Replace every adjective that governs behavior with a number. "Be careful" becomes "3 failed attempts = STOP". `references/primitives/03-hard-numbers.md`.
-- Group rules under named XML blocks or H2 sections, 1 topic per block. `references/primitives/01-namespace-blocks.md`.
-- When rules conflict, write a tier table with explicit priority (Safety > Explicit user request > Repo conventions > Defaults). `references/primitives/12-hierarchical-override.md`.
-- For every Never rule, state the consequence. A bare ban fails; ban + named harm survives rephrasing. `references/techniques/04-consequence-statement.md`.
-- For any routing decision (which tool, which path, which agent), use Step 0 → Step N ladder with stop-at-first-match. `references/primitives/02-decision-ladders.md`.
-- For SKILL.md specifically: description lists 10+ trigger keywords, fires broadly, covers symptoms users describe.
-{/policy}
+Both emit detection lists you quote by line range and confidence.
 
-SKILL.md audit extras (on top of the 11 invariants):
-- description length 80–300 words, contains 10+ distinct trigger keywords.
-- SKILL.md body ≤ 500 lines; push detail into `references/`.
-- Scripts exist for repetitive deterministic work, not prose advice.
-- Every reference file opens with a 1-line TL;DR.
+## Flow A — LINT
 
-## LINT Skeleton flow — new system prompt
+### Phase 1: Gather
 
-1. Copy `assets/skeleton.md` to the target path.
-2. Fill placeholders top-down. Do not reorder top-level blocks. Order is load-bearing (`references/methodology.md`, "The XML choice").
-3. Write 3–6 examples covering: happy path, edge case, refusal, injection attempt, capability-disclosure trigger. Each example carries a `{rationale}` block. `references/primitives/06-example-plus-rationale.md`.
-4. Run `audit.py` on the draft until 11/11 passes. Do not ship below 11/11.
+Run the deterministic pass:
 
-## The 11 invariants — self-check before emit
+```bash
+python3 "$SKILL_DIR/scripts/audit.py" --json "<path>"
+python3 "$SKILL_DIR/scripts/plan.py"  --json "<path>"
+```
 
-Every output from opus-mind must satisfy the same invariants it enforces on targets. Source: `references/methodology.md`.
+If the file lives inside a repo, use Read/Grep to skim sibling
+context (`README.md`, `package.json`, `AGENTS.md`) — only enough
+to infer the project's role (agent, chatbot, code assistant,
+support bot). You are not auditing those files.
 
-{invariants}
-I1 Reduce interpretation surface — every adj carries a number or gets cut.
-   Anchor: source/opus-4.7.txt:L640 (15-word quote limit).
-I2 Eliminate rule conflicts — routing decisions use first-match-wins ladders.
-   Anchor: source/opus-4.7.txt:L515-537 (request_evaluation_checklist).
-I3 Catch motivated reasoning — refusal content requires a reframe-as-signal clause.
-   Anchor: source/opus-4.7.txt:L33.
-I4 Keep internals private — zero machinery narration phrases.
-   Anchor: source/opus-4.7.txt:L536, L560.
-I5 Calibrate through examples — every example carries rationale.
-   Anchor: source/opus-4.7.txt:L710-750 (copyright examples).
-I6 Make failure modes explicit — every high-stakes rule names its harm.
-   Anchor: source/opus-4.7.txt:L753-759 (copyright consequence statement).
-{/invariants}
+### Phase 2: Synthesize
 
-## The 12 primitives — index
+1. Parse both JSON payloads.
+2. If `verdict == "THIN"`, stop and tell the user the file is
+   too thin to audit — quote the `thin_reason` field.
+3. Rank the top findings by:
+   - Required for this domain (present in `plan.missing_required`)
+   - Severity (I1 `hedge_density > 0.25`, I4 narration > 0,
+     I6 consequences < directives/10 are heavier than soft gaps)
+   - Fixability via `fix --add` first, manual rewording second
+4. Pick the **top 3** failing invariants. For each:
+   - Read the primitive doc at `references/primitives/NN-*.md`
+     or technique doc at `references/techniques/NN-*.md`
+   - Extract the `## TL;DR` section (≤ 2 sentences)
+5. Note any `placeholder_count > 0` — the author injected
+   skeletons but did not fill them.
 
-Each lives at `references/primitives/NN-<name>.md` with definition, evidence, failure mode, apply, misuse. Do not paraphrase inline. Point and stop.
+### Phase 3: Respond in prose
 
-{primitives}
-01 namespace-blocks       — XML tags as scoped modules
-02 decision-ladders       — Step 0 → N, first-match-wins
-03 hard-numbers           — 15 beats "short" every time
-04 default-plus-exception — strong default, explicit opt-in list
-05 cue-based-matching     — recognize signals, no flowchart memorization
-06 example-plus-rationale — every example carries its why
-07 self-check-assertions  — runtime checklist before output
-08 anti-narration         — hide machinery from user
-09 reframe-as-signal      — sanitization impulse is the refusal trigger
-10 asymmetric-trust       — different claims, different bars
-11 capability-disclosure  — tell the model what it does not know
-12 hierarchical-override  — safety > user > helpfulness, explicit
-{/primitives}
+Lead with the verdict, then 3 findings with line refs, then one
+concrete next action. Do not dump raw JSON. Example shape:
 
-## The 7 techniques — composed moves
+```
+Your CLAUDE.md scores 6/11 (BORDERLINE). Three things move the verdict:
 
-{techniques}
-01 force-tool-call                — model answers from stale priors
-02 paraphrase-with-numeric-limits — copyright creep
-03 caution-contagion              — refuse once, relent on follow-up
-04 consequence-statement          — rule survives rephrasing
-05 injection-defense-in-band      — user content impersonates system
-06 negative-space                 — surprising behavior not forbidden
-07 category-match                 — model rationalizes out of routing
-{/techniques}
+1. I2 decision-ladders — 26 directives, no "Step N → ..." ladder.
+   Primitive 02: routing written as ordered steps with first-match-wins,
+   not as an unordered list. Fix: `opus-mind lint fix CLAUDE.md --add ladder`.
 
-Full index and primitive-to-technique map at `references/techniques/README.md`.
+2. I6 consequences at L42 — ...
 
-## Self-compliance gate
+3. I1 hedges at L88 — ...
 
-{self_compliance}
-Before this skill releases any output, it runs `scripts/audit.py` on its own SKILL.md. The gate is NON-NEGOTIABLE:
-- 11/11 invariants pass.
-- 0 narration phrases.
-- hedge_density ≤ 0.25.
-- number_density ≥ 0.10.
+Next: run the fix above, then `opus-mind lint report CLAUDE.md` to
+re-verify. Expected lift: BORDERLINE → GOOD.
+```
 
-A score below 11/11 is a HARD BLOCK on release. This skill does not ship advice it refuses to follow.
-{/self_compliance}
+### Phase 4: Offer the fix, wait for consent
 
-{self_check}
-Before this skill emits any response, it asks internally:
-- Did I pick the right flow (BOOST vs LINT)?
-- Did I cite a primitive file or source line for every claim?
-- Is any output prose opinion rather than a structured block?
-- Does my own SKILL.md still score 11/11?
-- Did I narrate machinery ("let me") anywhere in the output?
-{/self_check}
+If the user agrees, run:
+
+```bash
+python3 "$SKILL_DIR/scripts/fix.py" "<path>" --add "<keys>" --apply
+```
+
+Then re-run Phase 1-3 so the user sees the score delta in the
+same reply. Warn them: `fix --add` injects skeletons with
+`<FIXME>` markers. They need to fill the markers with
+domain-specific wording before commit, or the verdict stays
+below GOOD (placeholder penalty).
+
+### Phase 5 — Crosscheck (on request)
+
+When the user asks for a semantic review beyond regex:
+
+```bash
+python3 "$SKILL_DIR/scripts/audit.py" --crosscheck "<path>"
+```
+
+The script prints a structured review prompt. Read it. Apply it
+as a second reviewer in your next reply: list false positives
+the regex caught wrongly, additional findings (rule conflicts,
+consequence mismatches) regex missed, per-invariant severity
+deltas. No API call. You are the second reviewer.
+
+## Flow B — BOOST
+
+### Phase 1: Check
+
+```bash
+python3 "$SKILL_DIR/scripts/boost.py" check --json "<prompt>"
+```
+
+Parse the coverage (`filled_count / 10`) and empty slots. The JSON
+payload also carries:
+
+- `task_type`: one of `code` / `analyze` / `research` / `write` /
+  `short` / `unknown` — inferred from the prompt's verbs and nouns.
+- `impact_order`: the 10 slots pre-ranked for this task type.
+  Code tasks surface B10 first; analysis surfaces B8; creative
+  writing surfaces B4; short one-offs surface B2 and skip the
+  reasoning layer entirely.
+
+### Phase 2: Ask — one question at a time, in `impact_order`
+
+Do not dump all empty slots as a list. Walk `impact_order` from
+the JSON, pick the FIRST empty slot, ask ONE question using
+`AskUserQuestion` (Claude Code) / `request_user_input` (Codex)
+/ `ask_user` (Gemini). Wait for the answer. Re-run `check` (or
+merge the answer mentally), then walk `impact_order` again for
+the next empty slot. Stop when coverage ≥ 7/10 or the user
+signals done.
+
+Task-type examples for reference (the JSON already hands you
+the right order; this table is a sanity-check):
+
+| task_type | top-3 slots to ask about first |
+|---|---|
+| code     | B10 decomposition → B8 reasoning → B9 verification |
+| analyze  | B8 reasoning → B9 verification → B4 context |
+| research | B9 verification → B8 reasoning → B4 context |
+| write    | B4 context → B6 constraints → B3 length |
+| short    | B2 format → B3 length → B6 constraints |
+| unknown  | B3 length → B4 context → B2 format |
+
+For B8-B10, suggest yes by default on **complex/multi-step/
+reasoning-heavy** tasks (code, analysis, research). Skip them on
+**short one-offs** (a tweet, a quick rename, a format conversion)
+— reasoning overhead hurts there and the JSON ranking already
+pushes them to the end for `task_type == "short"`.
+
+### Phase 2b — Non-English prompt adaptation
+
+The Python regex layer is English-centric. If the user's prompt
+is in a non-English language (Korean, Japanese, Spanish, etc.),
+the deterministic `filled` flags WILL underreport — a Korean
+prompt that says "단계별로 생각해봐" is real chain-of-thought
+framing but B8's English regex will not catch it.
+
+In that case, YOU (the Claude driving this session) override
+the regex with your own language judgment:
+
+1. Read the user's prompt in their native language.
+2. For each slot, ask yourself the slot's underlying question
+   (see `QUESTION_TEMPLATES` in `boost.py`) in the user's language.
+3. Mark `filled` yourself when the prompt genuinely answers that
+   question, regardless of what the regex said.
+4. In your reply, note which slots you judged filled beyond the
+   regex — transparency matters.
+
+Example — Korean prompt: "AI 안전에 대한 500단어 블로그 글 써줘.
+ML 엔지니어 대상. 단계별로 생각하고 각 주장을 검증해줘."
+
+Regex likely marks B1, B3 filled (English-friendly tokens leaked
+through) but misses B4 ("ML 엔지니어 대상"), B8 ("단계별로 생각"),
+B9 ("각 주장을 검증"). You mark all five filled and ask remaining
+questions in Korean.
+
+### Phase 3: Compose
+
+```bash
+python3 "$SKILL_DIR/scripts/boost.py" expand "<prompt>" \
+  --length "<answer>" --format "<answer>" --context "<answer>" ...
+```
+
+The script prints a composition prompt (NOT an API response).
+Read the template. Compose the rewritten user prompt as your
+next reply, following the rules in the emitted template:
+imperative verb + object, fold each answer in once, no
+hedging, no preamble.
+
+### Phase 4: Show the diff
+
+After emitting the rewrite, summarize:
+
+```
+Original (9 words, 1/7): "write me a blog post"
+Rewritten (67 words, 7/7): [your composition]
+Added: length, audience, format, tone, constraints
+```
+
+Offer one more iteration if the user wants to tune a slot.
+
+## Flow C — Debug by symptom
+
+### Phase 1: Match
+
+```bash
+python3 "$SKILL_DIR/scripts/symptom_search.py" "<symptom>" --json
+```
+
+### Phase 2: Teach
+
+Read the matched primitive or technique doc. Quote the
+TL;DR. Explain in 2 sentences: what the failure mode is,
+why it happens, which primitive prevents it.
+
+### Phase 3: Bridge to LINT
+
+If the user has a file where the symptom is firing, offer
+to run Flow A against it.
+
+## Platform adaptation
+
+- Blocking question tool:
+  `AskUserQuestion` (Claude Code) / `request_user_input` (Codex) / `ask_user` (Gemini)
+- Content search:
+  `Grep` + `Glob` (Claude Code) / `rg` (Codex) / `search_files` (Gemini)
+- File read / edit: platform-native — never shell out for these
+- LLM synthesis: **never** shell out. The surrounding platform
+  already runs a model.
+
+## Common mistakes
+
+- **Dumping raw `audit --json` output.** The skill's value is
+  prose synthesis with line refs. JSON is input, not output.
+- **Asking all empty boost slots at once.** One question at a
+  time, ranked by impact. Users abandon 6-question menus.
+- **Requesting an `ANTHROPIC_API_KEY`.** You are the LLM. Compose
+  in-chat. The architecture block forbids external calls.
+- **Scoring `SKILL.md` with `audit.py --self`.** Wrong genre.
+  `audit.py` targets system prompts; `SKILL.md` is instructions
+  for Claude. Different ruleset, different evaluator.
+- **Starting with `fix --add` before showing the report.** Users
+  need to see why a change is recommended before approving it.
+
+## How to invoke
+
+Natural-language triggers that fire this skill:
+
+- "audit my CLAUDE.md" → Flow A
+- "score this SKILL.md" → Flow A
+- "is this `.cursorrules` any good?" → Flow A
+- "my bot refuses then gives in two turns later" → Flow C
+- "help me turn 'write a blog post' into a real prompt" → Flow B
+- "I want this better — here's my prompt: [...]" → Flow B
+- "why does Claude keep narrating tool calls in my chatbot?" → Flow C → Flow A
+
+## The 11 structural invariants (LINT)
+
+Source refs are line numbers in the leaked Opus 4.7 system prompt
+(CL4R1T4S mirror). Every check is regex + count with an explicit
+threshold — no vibe grading.
+
+| ID | Primitive | Signal | Source |
+|---|---|---|---|
+| I1  | 03 hard-numbers            | hedge_density ≤ 0.25, number_density ≥ 0.10 | L664, L620 |
+| I2  | 02 decision-ladders        | Step N tokens + stop-at-first-match         | L515–L537 |
+| I3  | 09 reframe-as-signal       | reframe clause when refusal content present | L33 |
+| I4  | 08 anti-narration          | zero forbidden preambles                    | L536, L560 |
+| I5  | 06 example + rationale     | every example carries a rationale           | L710–L750 |
+| I6  | technique 04               | consequences ≥ directives / 10              | L753–L759 |
+| I7  | 01 namespace-blocks        | every `{foo}` has `{/foo}`                  | structural |
+| I8  | 04 default + exception     | default + (unless/except/only-when) cooccur | L25, L57–68 |
+| I9  | 07 self-check              | self-check block when prompt is long        | L698–L707 |
+| I10 | pattern: tier-labels       | ALLCAPS multi-word markers for high-stakes  | L640, L657 |
+| I11 | 12 hierarchical-override   | Tier N / X > Y > Z / "takes precedence"     | L657 |
+
+The `plan.py` domain inference (`has_tools`, `has_refusals`,
+`is_long`, `has_examples`, `has_conflicts`) decides which
+invariants are **required** for a given file. Always required:
+I1, I2, I4, I6, I7, I8.
+
+## The 10 BOOST slots
+
+**Specification layer** — grounded in Anthropic public prompt-engineering docs:
+
+| ID | Slot | Answers the question |
+|---|---|---|
+| B1 | task        | What to produce (imperative verb + object) |
+| B2 | format      | Output shape (JSON / markdown / bullets / prose) |
+| B3 | length      | Numeric budget (words / tokens / lines / bullets) |
+| B4 | context     | Audience + background |
+| B5 | few_shot    | Example of desired output |
+| B6 | constraints | Tone / style / avoid-list |
+| B7 | clarify     | Ambiguity policy (ask vs assume + flag) |
+
+**Reasoning layer** — grounded in `evidence/smart-prompting-refs.md`:
+
+| ID | Slot | Technique | Source |
+|---|---|---|---|
+| B8  | reasoning     | ask for step-by-step / outline-first thinking | Wei 2022 (CoT) |
+| B9  | verification  | ask for self-check / flag uncertain claims    | Shinn 2023 (Reflexion) |
+| B10 | decomposition | ask for plan-before-execute / break into subtasks | Zhou 2022 (Least-to-most) |
+
+None of these overlap with the system prompt. They are the
+slots only the user can fill — specification shapes what Claude
+produces, reasoning shapes how Claude thinks.
 
 ## Evidence and attribution
 
-{evidence}
-Source file: `source/opus-4.7.txt` — a 1408-line verbatim mirror from the CL4R1T4S archive. Every primitive and technique cites explicit line ranges in `references/line-refs.md`. No claim floats without a line number.
-
-This skill was reverse-engineered from a leaked artifact. Anthropic has not published this prompt. All quotations stay under 15 words per the Opus 4.7 policy itself (`source/opus-4.7.txt:L640`).
-{/evidence}
-
-## What this skill refuses to do
-
-{refusals}
-- Write prose opinion about a prompt. Opinion is I1 drift.
-- Rewrite a prompt without running audit first. Rewrites without a score are vibes.
-- Invent primitives not in `references/primitives/`. New primitives require new evidence, new line refs, and a PR to the root repo.
-- Paraphrase primitive or technique bodies inline. Point and stop — the progressive disclosure contract.
-- Output advice that fails 11/11 on itself. This skill refuses to be hypocritical.
-{/refusals}
-
-## Quick start
-
-- Audit an existing prompt: `python3 skills/opus-mind/scripts/audit.py path/to/prompt.md`
-- Author from scratch: copy `assets/skeleton.md`, fill placeholders, audit to 11/11.
-- Debug a symptom: `opus-mind symptom "refuse then relent"` → primitive pointer + source line ref.
-- Audit this skill: `python3 skills/opus-mind/scripts/audit.py --self`.
-- LLM crosscheck: `opus-mind crosscheck path/to/prompt.md` — emits a structured review prompt for a second reviewer. In this Claude Code session, YOU apply it directly — read the emitted prompt, judge the auditor's findings, emit the review as your reply. No API call. Outside Claude Code, the CLI user pastes the emitted prompt into any LLM of their choice.
-
-## Model context (April 2026)
-
-The reverse-engineered source is the Claude Opus 4.7 system prompt. The primitives generalize to any sufficiently capable LLM (GPT 5.4, Gemini 3.1 Pro, etc.), since they address prompt-engineering failure modes, not Claude-specific behavior.
+Every recommendation anchors to `source/opus-4.7.txt:L###` or
+a primitive/technique file in `references/`. Source not hosted
+here — see [`source/README.md`](../../source/README.md) for the
+CL4R1T4S pointer. This skill is independent third-party analysis,
+not endorsed by Anthropic.
