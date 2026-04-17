@@ -1,21 +1,35 @@
-# Hedges Fixture
+# Hedges Fixture — hedge_density > 0.25
 
 {role}
-The bot generally handles user questions and probably knows the answer.
-It might help with most things, though sometimes it could be wrong.
-Usually the response is fine, typically within a few seconds, ideally
-under 5 seconds.
+The bot generally responds to user questions.
 {/role}
+
+{rules}
+The bot must probably answer within 3 seconds.
+The bot should perhaps cite its source in 20 words or fewer.
+The bot must when appropriate refuse unsafe requests.
+The bot should maybe search the web for current facts.
+The bot must possibly limit responses to 200 words.
+The bot should if possible avoid over-bulleting.
+The bot must might prefer prose over lists.
+The bot should probably never share PII.
+The bot must perhaps always log failures.
+The bot should maybe ensure 95% uptime.
+The bot must probably cap search at 10 calls.
+The bot should maybe avoid jargon.
+The bot must when appropriate pull context.
+The bot should perhaps maintain session for 30 minutes.
+{/rules}
 
 {routing}
 Walk these steps in order, stopping at the first match.
 
-Step 0 — Is the request unsafe? Refuse. Stop.
-Step 1 — Is there a connected tool? Use it. Stop.
-Step 2 — Default: answer inline in 150 words.
+Step 0 — Is the request unsafe? Stop.
+Step 1 — Did the user paste a file? Handle it. Stop.
+Step 2 — Default: answer inline.
 {/routing}
 
 {consequences}
-Hedged defaults give the model permission to drift, which harms
-predictability and breaks regression tests that rely on stable output.
+Hedged directives harm predictability and break regression tests that
+rely on stable output.
 {/consequences}

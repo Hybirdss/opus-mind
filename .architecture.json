@@ -1,7 +1,7 @@
 {
   "root": "/home/yunsu/dev/opus-4-7-decoded",
-  "total_files": 8,
-  "total_lines": 2209,
+  "total_files": 12,
+  "total_lines": 3063,
   "modules": {
     "skills": {
       "files": [
@@ -9,27 +9,31 @@
         "skills/opus-mind/scripts/symptom_search.py",
         "skills/opus-mind/scripts/decode.py",
         "skills/opus-mind/scripts/draft.py",
+        "skills/opus-mind/scripts/stylebook.py",
         "skills/opus-mind/scripts/fix.py",
         "skills/opus-mind/tests/test_audit.py",
-        "skills/opus-mind/tests/conftest.py"
+        "skills/opus-mind/tests/conftest.py",
+        "skills/opus-mind/tests/test_draft.py",
+        "skills/opus-mind/tests/test_polish.py"
       ],
-      "lines": 2133,
+      "lines": 2878,
       "types": [
         ".py"
       ],
       "configs": [],
-      "file_count": 7
+      "file_count": 10
     },
     "tests": {
       "files": [
-        "tests/test_fixtures.py"
+        "tests/test_fixtures.py",
+        "tests/test_dogfood.py"
       ],
-      "lines": 76,
+      "lines": 185,
       "types": [
         ".py"
       ],
       "configs": [],
-      "file_count": 1
+      "file_count": 2
     }
   },
   "entry_points": [],
@@ -46,5 +50,5 @@
       "skills"
     ]
   },
-  "updated_at": "2026-04-17T14:05:28"
+  "updated_at": "2026-04-17T14:30:37"
 }
