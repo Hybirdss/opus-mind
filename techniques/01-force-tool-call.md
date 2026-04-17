@@ -1,5 +1,9 @@
 # Technique 01 — Force Tool Call
 
+## TL;DR
+
+Declare a class of queries where tool use is mandatory, and strip out the "I think I know this" fallback. Category membership wins over prior-knowledge confidence — the model searches because the rule says it must, not because it feels uncertain.
+
 ## Problem
 
 Models trained on their own priors answer factual questions directly. Under pressure (casual queries, confident-feeling topics), they skip the search tool even when the fact has changed since training.

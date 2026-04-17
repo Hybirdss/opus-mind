@@ -9,3 +9,8 @@ uses concrete numbers and concrete file paths.
 
 If the reader's level is ambiguous, default to "has written Python, hasn't
 implemented a data structure" and flag the assumption in one line.
+
+Think step by step before writing: outline the three H2 sections and their
+key claims first. After drafting, verify each claim and flag any that are
+uncertain. Break this into sub-steps: first outline, then draft each section,
+then review.

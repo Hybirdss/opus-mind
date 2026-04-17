@@ -1,0 +1,2 @@
+Build a 200-word README section for the `check` command. Audience:
+Python developers new to the repo.

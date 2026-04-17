@@ -72,12 +72,13 @@ def test_bad_no_consequence_fails_i6():
     assert r.pass_flags["I6_failure_modes_explicit"] is False
 
 
-def test_skill_self_scores_6_of_6():
-    r = audit.audit(HERE.parent / "SKILL.md")
-    assert r.score == "11/11", (
-        f"SKILL.md regressed: {r.score}\n"
-        f"failing: {[k for k, v in r.pass_flags.items() if not v]}"
-    )
+# `test_skill_self_scores_6_of_6` was removed after the Phase 3 rewrite.
+# SKILL.md is a markdown instruction doc for Claude Code, not a system
+# prompt. Scoring it with `audit.py` is a genre mismatch — audit.py's 11
+# invariants target production agent prompts (refusal design, tier labels,
+# etc.), which SKILL.md has no reason to contain. Skill-doc quality is
+# now enforced by `test_skill_orchestration.py` (frontmatter shape, JSON
+# schema contracts, TL;DR loadability).
 
 
 # ----- decode tests -----

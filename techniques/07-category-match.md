@@ -1,5 +1,9 @@
 # Technique 07 — Category Match (Not Style Preference)
 
+## TL;DR
+
+State explicitly that routing is decided by category match, not by style preference. Naming the rationalization move ("this is a special case so my preferred tool is better") and forbidding it removes the model's escape hatch.
+
 ## Problem
 
 Routing rules fail when the model can sub-divide a category to avoid a rule. "That tool handles diagrams, but this is a *special* kind of diagram, so my preferred tool is better." The model rationalizes its way out.

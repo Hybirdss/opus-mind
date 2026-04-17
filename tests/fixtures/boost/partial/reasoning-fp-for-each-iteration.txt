@@ -1,0 +1,2 @@
+Summarize the top three hazards for each worker on the shift roster.
+Return 1 sentence per worker, prose, under 200 words.

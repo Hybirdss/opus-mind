@@ -182,12 +182,44 @@ class Report:
     pass_flags: dict[str, bool] = field(default_factory=dict)
     metrics: dict[str, float] = field(default_factory=dict)
     findings: list[Finding] = field(default_factory=list)
+    # Verdict and thin-content flag are populated after invariants run.
+    # Skill consumers read these instead of interpreting raw score strings.
+    verdict: str = "UNKNOWN"          # THIN / POOR / BORDERLINE / GOOD
+    thin_reason: str | None = None    # explanation when verdict == THIN
+    placeholder_count: int = 0        # <FIXME>, <TODO>, <YOUR ...> remnants
 
     @property
     def score(self) -> str:
         passed = sum(1 for v in self.pass_flags.values() if v)
         total = len(self.pass_flags)
         return f"{passed}/{total}"
+
+    @property
+    def structural_health(self) -> str:
+        # Alias for score — explicit name for skill orchestration payloads.
+        return self.score
+
+
+# Placeholder patterns left behind by `fix --add` or abandoned drafts.
+# Their presence means the author injected a skeleton but never filled it;
+# the content is shaped right but semantically empty. Surfacing this in
+# the JSON lets the skill penalise "passed the lint by stuffing TODOs".
+#
+# Covers three common placeholder conventions:
+#   - XML-style markers (<FIXME>, <TODO>, <YOUR X>) — from fix --add
+#   - Bracket-style markers ([TODO], [FIXME], [TBD]) — journalism / draft
+#   - Bare typographic markers (TBD, ???, XXX, tk tk) — writer shorthand
+# Quote-span guard in audit_text() still suppresses examples wrapped in
+# backticks / quotes so docs can mention these without self-flagging.
+PLACEHOLDER_RE = re.compile(
+    r"<\s*(?:FIXME|TODO|YOUR [A-Z][A-Z_ ]*|DESCRIBE [A-Z_ ]*|FILL IN [A-Z_ ]*)[^>]*>"
+    r"|\[\s*(?:FIXME|TODO|TBD|XXX|HACK|NOTE)\b[^\]]{0,80}\]"
+    r"|\b(?:TBD|TKTK|tktk)\b"
+    r"|(?<![?\w])\?{3,}(?!\w)"                       # ??? but not part of a URL / word
+    r"|(?<![\w.])XXX(?![\w])"                        # XXX as bare marker
+    r"|\btk\s+tk\b",                                 # journalism "tk tk" placeholder
+    re.IGNORECASE,
+)
 
 
 # Negators that, when present on the same line as a match, indicate the
@@ -618,6 +650,52 @@ def audit_text(
             "references/primitives/12-hierarchical-override.md",
         ))
 
+    # --- Placeholder scan: skeleton injected, never filled ---
+    # `fix --add` leaves <FIXME> markers; abandoned drafts often contain
+    # <YOUR NAME>, <DESCRIBE FLOW>, etc. Counting these tells the skill
+    # whether the prompt is a real author artefact or a half-finished
+    # scaffold that technically passes invariants. Quoted mentions
+    # (`<FIXME>` inside backticks or quotes) are examples, not unfilled
+    # content — suppress those via the same quote-span guard used for
+    # slop / narration detection.
+    placeholder_hits: list[tuple[int, str, str]] = []
+    for idx, line in enumerate(lines, start=1):
+        for m in PLACEHOLDER_RE.finditer(line):
+            if _match_inside_quotes(line, m.start(), m.end()):
+                continue
+            placeholder_hits.append((idx, line.rstrip(), m.group(0)))
+    report.placeholder_count = len(placeholder_hits)
+    report.metrics["placeholder_count"] = len(placeholder_hits)
+    for ln, snip, match in placeholder_hits[:8]:
+        report.findings.append(Finding(
+            "placeholder", ln, snip,
+            f"unfilled skeleton marker: {match!r}",
+            "fill the placeholder with domain-specific wording",
+        ))
+
+    # --- Verdict + thin-content gate ---
+    # THIN overrides everything else: a 1-line or 0-directive prompt can
+    # pass invariants only because there's nothing to fail. Surfacing this
+    # as its own verdict stops the skill celebrating empty files at 11/11.
+    dir_count = int(report.metrics.get("directives", 0))
+    if dir_count < 3 and report.line_count < 10:
+        report.verdict = "THIN"
+        report.thin_reason = (
+            f"too thin to audit: {dir_count} directives, "
+            f"{report.line_count} lines (need ≥ 3 directives or ≥ 10 lines)"
+        )
+    else:
+        passed = sum(1 for v in report.pass_flags.values() if v)
+        total = len(report.pass_flags)
+        # GOOD requires all invariants AND zero unfilled placeholders —
+        # otherwise the skeleton-stuffing hack lifts the score falsely.
+        if passed == total and report.placeholder_count == 0:
+            report.verdict = "GOOD"
+        elif passed <= total * 0.5:
+            report.verdict = "POOR"
+        else:
+            report.verdict = "BORDERLINE"
+
     return report
 
 
@@ -625,7 +703,11 @@ def _format_human(r: Report) -> str:
     out = []
     out.append(f"path: {r.path}")
     out.append(f"lines: {r.line_count}")
-    out.append(f"score: {r.score}")
+    out.append(f"score: {r.score}   verdict: {r.verdict}")
+    if r.thin_reason:
+        out.append(f"note:  {r.thin_reason}")
+    if r.placeholder_count:
+        out.append(f"placeholders unfilled: {r.placeholder_count}")
     out.append("")
     out.append("invariants:")
     for key, val in r.pass_flags.items():
@@ -651,10 +733,18 @@ def _format_human(r: Report) -> str:
 
 
 def _format_json(r: Report) -> str:
+    # Stable schema consumed by SKILL.md orchestration. Adding keys is
+    # safe; removing or renaming requires a version bump because the skill
+    # instructions reference these paths literally.
     return json.dumps({
+        "schema_version": "1.0",
         "path": r.path,
         "line_count": r.line_count,
         "score": r.score,
+        "structural_health": r.structural_health,
+        "verdict": r.verdict,
+        "thin_reason": r.thin_reason,
+        "placeholder_count": r.placeholder_count,
         "pass": r.pass_flags,
         "metrics": r.metrics,
         "findings": [
@@ -745,7 +835,13 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument(
         "--self", action="store_true",
-        help="audit the SKILL.md next to this script",
+        help=(
+            "INFORMATIONAL ONLY: audit this skill's own SKILL.md. "
+            "SKILL.md is instruction prose for Claude Code, NOT a system "
+            "prompt — audit.py's 11 invariants target production agent "
+            "prompts. A low score on --self is not a bug; it's a genre "
+            "mismatch. Kept for curiosity, not as a gate."
+        ),
     )
     parser.add_argument(
         "--crosscheck",
@@ -765,6 +861,12 @@ def main() -> int:
 
     if args.self:
         target = Path(__file__).resolve().parent.parent / "SKILL.md"
+        print(
+            "note: --self is INFORMATIONAL. SKILL.md is instruction prose "
+            "for Claude Code, not a production system prompt. A low score "
+            "here is a genre mismatch, not a regression.",
+            file=sys.stderr,
+        )
         report = audit(target, stylebook=args.stylebook)
     elif args.path == "-":
         text = sys.stdin.read()
