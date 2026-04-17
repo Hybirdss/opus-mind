@@ -1,0 +1,1 @@
+../../../templates/system-prompt-skeleton.md
