@@ -739,23 +739,6 @@ def _build_crosscheck_prompt(r: Report, target_text: str) -> str:
     return "\n".join(lines)
 
 
-def _try_api_call(prompt: str, model: str) -> str | None:
-    import os
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        return None
-    try:
-        import anthropic  # type: ignore
-    except ImportError:
-        return None
-    client = anthropic.Anthropic()
-    response = client.messages.create(
-        model=model,
-        max_tokens=2048,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return response.content[0].text
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="opus-mind prompt auditor")
     parser.add_argument("path", nargs="?", help="prompt file to audit")
@@ -766,13 +749,13 @@ def main() -> int:
     )
     parser.add_argument(
         "--crosscheck",
-        choices=["prompt", "exec"],
-        help="emit LLM crosscheck prompt (prompt) or call the API (exec)",
-    )
-    parser.add_argument(
-        "--crosscheck-model",
-        default="claude-opus-4-7",
-        help="model to use for --crosscheck exec (default: claude-opus-4-7)",
+        action="store_true",
+        help=(
+            "emit an LLM crosscheck review prompt for the auditor's findings. "
+            "In a Claude Code session, the current Claude applies the emitted "
+            "prompt as a second reviewer — no API call, no API key. Outside "
+            "Claude Code, paste the emitted prompt into any LLM."
+        ),
     )
     parser.add_argument(
         "--stylebook", action="store_true",
@@ -804,21 +787,13 @@ def main() -> int:
         return 2
 
     if args.crosscheck:
+        # Emit the review prompt only. Claude (in the current Claude Code
+        # session) applies it as a second reviewer. Outside Claude Code,
+        # paste the emitted prompt into any LLM of choice. This tool never
+        # calls an API directly — synthesis is done by the surrounding model.
         target_text = target.read_text(encoding="utf-8")
         prompt = _build_crosscheck_prompt(report, target_text)
-        if args.crosscheck == "prompt":
-            print(prompt)
-            return 0
-        response = _try_api_call(prompt, args.crosscheck_model)
-        if response is None:
-            print(
-                "note: ANTHROPIC_API_KEY missing or anthropic SDK not installed.",
-                file=sys.stderr,
-            )
-            print("emitting prompt for manual paste.", file=sys.stderr)
-            print(prompt)
-            return 2
-        print(response)
+        print(prompt)
         return 0
 
     print(_format_json(report) if args.json else _format_human(report))

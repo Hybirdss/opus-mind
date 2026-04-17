@@ -382,11 +382,11 @@ def build_report(
         meta = INVARIANT_META.get(inv)
         if meta is None:
             continue
-        label, doc, fix_key = meta
+        inv_label, doc, fix_key = meta
         tldr = _load_tldr(doc) if include_snippets else ""
         failures.append(InvariantFailure(
             invariant=inv,
-            label=label,
+            label=inv_label,
             findings=findings_by_inv.get(
                 inv.split("_")[0], [],  # audit uses "I1", not "I1_reduce_..."
             ),
@@ -401,11 +401,11 @@ def build_report(
         meta = INVARIANT_META.get(inv)
         if meta is None:
             continue
-        label, doc, fix_key = meta
+        inv_label, doc, fix_key = meta
         tldr = _load_tldr(doc) if include_snippets else ""
         missing.append(MissingPrimitive(
             invariant=inv,
-            label=label,
+            label=inv_label,
             primitive_ref=str(doc.relative_to(SKILL_ROOT.parent))
                 if SKILL_ROOT.parent in doc.parents else str(doc),
             tldr=tldr,

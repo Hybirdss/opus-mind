@@ -29,8 +29,16 @@ Seven slots:
 Subcommands:
     boost check   <prompt_or_path>   slot coverage, actionable
     boost ask     <prompt_or_path>   emit the questions to fill slots
-    boost expand  <prompt_or_path>   render concrete prompt from filled slots
-                                      (LLM-powered; --prompt emits the LLM prompt only)
+    boost expand  <prompt_or_path>   emit the composition prompt for the
+                                      current LLM (Claude Code's Claude,
+                                      or any LLM the CLI user pastes into)
+
+Architecture:
+    All three subcommands are deterministic — regex, slot detection, string
+    templates. No API calls. When `expand` emits a composition prompt, the
+    LLM synthesis is performed by the surrounding runtime — typically the
+    Claude Code session that invoked this skill. Outside Claude Code, users
+    paste the emitted prompt into any LLM of choice.
 
 Usage:
     opus-mind boost check "write a blog post about AI safety"
@@ -59,14 +67,14 @@ from pathlib import Path
 # tight and common-task-oriented.
 TASK_VERBS = [
     "write", "create", "make", "build", "design", "draft", "compose",
-    "generate", "produce", "render",
+    "generate", "produce", "render", "change", "update", "modify",
     "analyze", "review", "audit", "evaluate", "assess", "critique",
     "explain", "describe", "summarize", "outline", "list", "compare",
     "translate", "rewrite", "refactor", "rename", "convert",
     "find", "search", "extract", "identify", "classify",
     "fix", "debug", "solve", "improve", "optimize",
     "plan", "schedule", "organize", "structure",
-    "help", "suggest", "recommend", "propose",
+    "help", "suggest", "recommend", "propose", "diagnose",
     "show", "visualize", "illustrate", "graph", "chart",
 ]
 TASK_VERB_RE = re.compile(
@@ -104,12 +112,11 @@ LENGTH_RE = re.compile(
 # B4 — context. Audience / domain / background.
 CONTEXT_SIGNALS = [
     # "for <any adj/noun> (audience|engineers|devs|users|team|...)"
-    # Allow newline-spanning phrases via [\s\w/-]{0,60}.
     r"\bfor\s+(?:a|an|our|my|the)?[\s\w/-]{0,60}?"
     r"(?:audience|reader|readers|user|users|team|dev|devs|developer|developers|"
     r"analyst|analysts|engineer|engineers|writer|writers|student|students|"
     r"beginner|beginners|expert|experts|specialist|specialists|customer|customers|"
-    r"PM|PMs|manager|managers|researcher|researchers)\b",
+    r"PM|PMs|manager|managers|researcher|researchers|doctor|doctors|patient|patients)\b",
     r"\b(?:audience|target|context|background)\s*:",
     r"\btarget(?:ed)?\s+(?:at|for|audience)",
     r"\bassum(?:e|ing)\s+(?:the reader|they|we|you)\s+(?:know|have|are|can)",
@@ -118,24 +125,36 @@ CONTEXT_SIGNALS = [
     r"\bI am\b", r"\bI'm\s+(?:a|an|the|working|trying|building)",
     r"\bwe are\b", r"\bour (?:team|company|product|users|customers|codebase)\b",
     r"\b(?:beginner|intermediate|advanced|expert)[- ]level\b",
-    r"\bwho\s+(?:aren'?t|don'?t know|never|haven'?t|are new)\b",  # "who aren't alignment specialists"
+    r"\bwho\s+(?:aren'?t|don'?t know|never|haven'?t|are new)\b",
     r"\bnot\s+(?:alignment|ML|technical|domain)\s+\w+",
+    # Role / persona framing — classic context anchor.
+    r"\bYou are (?:an?|the) [A-Za-z]",
+    r"\bAct as (?:an?|the) [A-Za-z]",
+    r"\bYour (?:task|job|role) is\b",
+    r"\bhelp (?:doctors?|users?|engineers?|analysts?|writers?|students?|customers?|teams?|PMs?)",
+    # Document / data context via XML structure (multi-doc prompting).
+    r"<documents?>", r"<context>", r"<background>", r"<setup>",
+    # Explicit scope setting.
+    r"\b(?:in the context of|given the following|based on (?:the|this))\b",
 ]
 
 # B5 — few-shot / example. Structural: example markers, quoted samples.
 FEWSHOT_SIGNALS = [
     r"(?:^|\n)\s*(?:example|사례|예시)\s*\d*\s*[:\n]",
-    r"\bexample\s+(?:style|prompt|output|response|input)\s*:",
+    r"\bexample\s+(?:style|prompt|output|response|input|format)\s*:",
     r"(?:^|\n)\s*(?:like this|for instance|e\.g\.|such as)\b",
-    r"(?:^|\n)\s*>\s+\w",                       # markdown quote block
-    r"(?:^|\n)```[^\n]*\n",                     # fenced code block
-    r"\binput\s*:[^\n]+\n.*?\boutput\s*:",      # input/output pair
-    r"\bhere'?s an example\b",
+    r"(?:^|\n)\s*>\s+\w",                         # markdown quote block
+    r"(?:^|\n)```[^\n]*\n",                       # fenced code block
+    r"\binput\s*:[^\n]+\n.*?\boutput\s*:",        # input/output pair
+    r"\bhere'?s?\s+(?:an? )?example\b",
+    r"\bhere is (?:an? )?example\b",
     r"\bformat (?:it )?like\b",
     r"\bmatch(?:ing)? (?:the )?(?:style|tone|voice) of\b",
-    r"\bmatch(?:ing)? \w+[- ]style\b",          # "matching Nostalgebraist-style"
+    r"\bmatch(?:ing)? \w+[- ]style\b",
     r"\bin the style of\b",
-    r"\b(?:sample|reference|example) (?:post|article|code|essay|response)\b",
+    r"\b(?:sample|reference|example) (?:post|article|code|essay|response|format)\b",
+    # XML-tagged examples — Anthropic's recommended few-shot pattern.
+    r"<example[ s>/]", r"</example[s]?>",
 ]
 
 # B6 — constraints. Tone / avoid / style / limits beyond length.
@@ -144,20 +163,28 @@ CONSTRAINT_SIGNALS = [
     r"\b(?:avoid|don't|do not|no|without|never)\s+(?:use|include|mention|say)\b",
     r"\b(?:keep it|make it|be)\s+(?:concise|brief|formal|casual|playful|dry|direct|warm|cold)",
     r"\bno jargon\b", r"\bno buzzwords\b", r"\bno filler\b",
+    r"\bno preamble\b", r"\bwithout preamble\b",
     r"\b(?:formal|casual|conversational|academic|technical|friendly)\s+(?:tone|voice|style|register)",
     r"\bavoid (?:using |mentioning |the word )",
     r"\b(?:plain english|simple language|accessible language)\b",
+    # "show only X", "respond directly", "skip non-essential"
+    r"\bshow only\b", r"\brespond directly\b", r"\bskip (?:non[- ]essential|the)\b",
+    r"\bnever use\b",
+    r"\bpreserve (?:all|the) existing",
 ]
 
 # B7 — ambiguity / clarification policy.
 CLARIFY_SIGNALS = [
     r"\bif (?:unclear|ambiguous|uncertain|you don'?t know|you'?re not sure)\b",
     r"\bwhen (?:in doubt|unclear|ambiguous)\b",
-    r"\bask (?:me |first |for clarification|if)",
-    r"\bassume (?:that |the |I |we )",
+    # \s+ (not literal space) lets patterns span newline-wrapped text.
+    r"\bask\s+(?:me|first|for clarification|if|one specific|before)\b",
+    r"\bassume\s+(?:that|the|I|we)\b",
     r"\bdefault to\b", r"\buse your best judg?ment\b",
-    r"\bflag (?:any |it |anything) (?:unclear|ambiguous|uncertain)",
-    r"\bdon'?t (?:invent|make up|guess|fabricate)",
+    r"\bflag\s+(?:any|it|anything|them|which|assumption)\b",
+    r"\bdon'?t\s+(?:invent|make up|guess|fabricate)\b",
+    # "If records / docs / context are inconsistent" — Anthropic doc-loading pattern.
+    r"\bif\s+(?:records|docs|the input|context|the records|the docs)\s+(?:are|is)\s*(?:inconsistent|incomplete|unclear|missing)\b",
 ]
 
 SLOT_NAMES = ["B1", "B2", "B3", "B4", "B5", "B6", "B7"]
@@ -363,9 +390,9 @@ def ask(report: BoostReport) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# expand — render a concrete prompt from filled slots. LLM-powered.
-# Without --exec, emits the LLM prompt (human or another model can run it).
-# With --exec, calls the API using the same entrypoint as audit.py crosscheck.
+# expand — build the composition prompt for the surrounding LLM runtime.
+# Emits prompt text only; never calls an API. In a Claude Code session the
+# invoking Claude applies it in-chat. Outside, paste into any LLM.
 # ---------------------------------------------------------------------------
 
 EXPAND_TEMPLATE = """You are helping a user rewrite a vague prompt into a concrete one.
@@ -400,26 +427,6 @@ def build_expand_prompt(original: str, answers: dict[str, str]) -> str:
             lines.append(f"- {SLOT_LABELS[slot]}: {answers[slot]}")
     block = "\n".join(lines) if lines else "(no answers provided)"
     return EXPAND_TEMPLATE.format(original=original.strip(), answers_block=block)
-
-
-def _try_api_call(prompt: str, model: str) -> str | None:
-    try:
-        import anthropic  # type: ignore
-    except ImportError:
-        return None
-    try:
-        client = anthropic.Anthropic()
-    except Exception:
-        return None
-    try:
-        response = client.messages.create(
-            model=model,
-            max_tokens=1500,
-            messages=[{"role": "user", "content": prompt}],
-        )
-    except Exception:
-        return None
-    return response.content[0].text
 
 
 # ---------------------------------------------------------------------------
@@ -543,21 +550,11 @@ def _cmd_expand(args) -> int:
         if val:
             answers[slot] = val
 
-    prompt = build_expand_prompt(text, answers)
-
-    if args.mode == "prompt":
-        print(prompt)
-        return 0
-
-    response = _try_api_call(prompt, args.model)
-    if response is None:
-        print(
-            "error: API call failed (anthropic SDK not installed or no API key).\n"
-            "Run without --exec to print the expansion prompt for manual use.",
-            file=sys.stderr,
-        )
-        return 3
-    print(response)
+    # Emit the composition prompt only. In a Claude Code session, Claude
+    # reads this prompt and composes the expanded rewrite directly in chat —
+    # no API call, no key, no cost. Outside Claude Code, paste the emitted
+    # prompt into any LLM and run it there. This script never calls an API.
+    print(build_expand_prompt(text, answers))
     return 0
 
 
@@ -588,14 +585,6 @@ def main() -> int:
     p_exp.add_argument("--few-shot", dest="few_shot")
     p_exp.add_argument("--constraints")
     p_exp.add_argument("--clarify")
-    p_exp.add_argument(
-        "--mode", choices=["prompt", "exec"], default="prompt",
-        help="emit LLM prompt (default) or exec via Anthropic API",
-    )
-    p_exp.add_argument(
-        "--model", default="claude-opus-4-7",
-        help="model for --mode exec (default: claude-opus-4-7)",
-    )
     p_exp.set_defaults(func=_cmd_expand)
 
     args = parser.parse_args()
