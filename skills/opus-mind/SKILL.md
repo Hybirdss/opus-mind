@@ -1,13 +1,17 @@
 ---
 name: opus-mind
-description: Author, debug, audit, or refactor LLM system prompts using 12 primitives reverse-engineered from the leaked Claude Opus 4.7 system prompt (1408 lines). Fires whenever the user writes, pastes, edits, or complains about a system prompt, persona, agent instruction, CLAUDE.md, AGENTS.md, .cursorrules, GEMINI.md, or SKILL.md. Also fires on symptoms — refuse-then-relent, narration leak, rule conflict, adj drift, prompt injection, tool-call drift. Replaces vague adjectives with numbers, prose with XML blocks, rules with first-match-wins ladders. Every recommendation cites source/opus-4.7.txt line numbers or a named primitive file. Never emits prose opinion.
+description: Two products in one skill. LINT — audit CLAUDE.md / SKILL.md / .cursorrules / AGENTS.md / chatbot system prompts against 11 structural invariants (decision ladders, reframe guards, tier labels, consequences). BOOST — coach a user's single prompt against 7 specification slots (task, format, length, audience, examples, constraints, clarify). Fires on system-prompt work, agent persona editing, prompt-injection concerns, AND on one-liner prompts the user wants improved. Replaces vague adjectives with numbers, adds structural primitives via fix --add, and for user prompts emits a concrete LLM-renderable expansion. Primitives sourced from the leaked 1408-line Claude Opus 4.7 system prompt (CL4R1T4S mirror). Never emits prose opinion.
 ---
 
 # opus-mind
 
-Compile a prompt like you compile a program. Six invariants, twelve primitives, seven techniques — all indexed to lines in the leaked Claude Opus 4.7 system prompt.
+Compile a prompt like you compile a program. Two products, one skill:
 
-This skill treats a system prompt as a behavioral program for an LLM runtime. It does 4 jobs: author, debug, audit, refactor. Output is structured blocks. Every claim carries a line ref or a primitive pointer.
+**LINT** — for BUILDERS writing production system prompts (CLAUDE.md, SKILL.md, .cursorrules, AGENTS.md, chatbot system prompts). 11 structural invariants. Gates commits.
+
+**BOOST** — for USERS writing a single prompt to Claude / ChatGPT / Cursor. 7 specification slots. Coaches the prompter.
+
+The two do not overlap. LINT audits the agent **system layer** (safety, rule conflicts, refusal design — stuff the LLM runtime sits on top of). BOOST audits the **user layer** (task clarity, length, audience, tone — stuff only the user can fill). Output from both is structured blocks, every claim carries a line ref or a primitive pointer.
 
 {contract}
 Every response from this skill obeys:
@@ -16,30 +20,61 @@ Every response from this skill obeys:
 - Zero narration phrases (full list at `scripts/audit.py` NARRATION).
 - Every claim anchors to `source/opus-4.7.txt:L###` or `references/primitives/NN.md`.
 - XML blocks or decision ladders for any routing decision.
-- 6/6 score on `scripts/audit.py --self` before emit.
+- 11/11 score on `scripts/audit.py --self` before emit.
 {/contract}
 
 ## Router — first-match-wins, stop at match
 
 {routing}
-Step 0 — User pastes an existing prompt and asks for review, score, audit, or fix?
-         → run Audit flow.
-Step 1 — User describes a symptom (refuse-relent, narration leak, rule conflict, adj drift, jailbreak, injection, tool drift)?
-         → run Debug flow.
-Step 2 — User writes CLAUDE.md, AGENTS.md, .cursorrules, GEMINI.md, SKILL.md, or team rules file?
-         → run Policy flow.
+Step 0 — User pastes or points to a one-liner / short request they want
+         to send to an AI (Claude chat, ChatGPT, Cursor) and wants it
+         "better"?
+         → run BOOST flow.
+Step 1 — User is editing / authoring / auditing a SYSTEM prompt file
+         (CLAUDE.md, AGENTS.md, .cursorrules, GEMINI.md, SKILL.md, or
+         a chatbot system prompt)?
+         → run LINT flow (sub-routes: audit / plan / fix / decode).
+Step 2 — User describes a symptom (refuse-relent, narration leak,
+         rule conflict, adj drift, jailbreak, injection, tool drift)?
+         → run LINT Debug flow.
 Step 3 — User authors a new system prompt from scratch?
-         → run Skeleton flow.
+         → run LINT Skeleton flow.
 {/routing}
 
-Flows do not mix. Pick one, finish, stop. Mixing drops the first-match-wins property (`references/primitives/02-decision-ladders.md`, `source/opus-4.7.txt:L515-537`).
+Flows do not mix. Pick one, finish, stop. Mixing drops the first-match-wins property (`references/primitives/02-decision-ladders.md`, Opus 4.7 source L515-537). The BOOST vs LINT discriminator is specifically: **is this a prompt a user SENDS, or a prompt a builder WRITES INTO a file**? Chat messages and one-off requests are BOOST. Committed files are LINT.
 
-## Audit flow
+## BOOST flow
 
-Input: a prompt file path.
+Input: a prompt the user will send to an assistant.
+
+1. Run `python3 skills/opus-mind/scripts/boost.py check <prompt_or_path>`.
+2. Read the 7-slot coverage board. Coverage N/7 is the score, but the real product is the empty slots.
+3. For empty slots, run `boost ask` to surface the exact questions the user should answer.
+4. Once the user has answers, run `boost expand` — either `--mode prompt` to emit the LLM prompt for manual use, or `--mode exec` to call the API and return a concrete rewritten prompt.
+
+Output block shape:
+
+```
+{boost}
+  source: <inline or path>
+  coverage: 4/7
+  empty: [B2, B3, B5]
+  filled: [B1, B4, B6, B7]
+{/boost}
+{next_step}
+  ask → skills/opus-mind/scripts/boost.py ask "<prompt>"
+  expand → skills/opus-mind/scripts/boost.py expand "<prompt>" --length ... --format ...
+{/next_step}
+```
+
+BOOST does NOT enforce refusal / safety / anti-narration — the system prompt the user's assistant runs on already handles that layer. Adding those rules to a user-sent prompt is duplication.
+
+## LINT Audit flow
+
+Input: a prompt file path (CLAUDE.md / SKILL.md / .cursorrules / ...).
 
 1. Run `python3 skills/opus-mind/scripts/audit.py <path>`.
-2. Read the 6/6 invariant board. Zero interpretation — the script is the judge.
+2. Read the 11/11 invariant board. Zero interpretation — the script is the judge.
 3. For each failing invariant, open the fix_pointer file under `references/`.
 4. Emit a `{findings}` block keyed by line number. Zero prose commentary.
 
@@ -47,24 +82,25 @@ Output block shape:
 ```
 {audit}
   path: <file>
-  score: 4/6
-  fail: [I1, I4]
+  score: 8/11
+  fail: [I1, I4, I9]
   metrics:
-    slop_tier1: 3
+    hedge_density: 0.31
     narration: 2
-    number_density: 0.28
+    number_density: 0.12
+    directives: 18
 {/audit}
 {findings}
-  L47 [I1] "<adjective>" — adj without number.
+  -- [I1] hedge_density 0.31 > 0.25 — 6 hedges / 18 directives.
          fix: references/primitives/03-hard-numbers.md
   L92 [I4] "<narration-phrase>" — narration leak.
          fix: references/primitives/08-anti-narration.md
 {/findings}
 ```
 
-Refactor only when the user requests. An audit is not a rewrite.
+Refactor only when the user requests. An audit is not a rewrite. For targeted rewriting, use `fix.py --add <primitive>` to inject missing skeletons.
 
-## Debug flow
+## LINT Debug flow
 
 Input: a symptom sentence. Output: primitive pointer plus the 1–2 source lines that govern it.
 
@@ -98,7 +134,7 @@ Output block shape:
 {/debug}
 ```
 
-## Policy flow — CLAUDE.md, AGENTS.md, .cursorrules, SKILL.md
+## LINT Policy flow — CLAUDE.md, AGENTS.md, .cursorrules, SKILL.md
 
 A rules file is a system prompt with a different entry point. Same bar applies. Specific moves:
 
@@ -111,20 +147,20 @@ A rules file is a system prompt with a different entry point. Same bar applies. 
 - For SKILL.md specifically: description lists 10+ trigger keywords, fires broadly, covers symptoms users describe.
 {/policy}
 
-SKILL.md audit extras (on top of the 6 invariants):
+SKILL.md audit extras (on top of the 11 invariants):
 - description length 80–300 words, contains 10+ distinct trigger keywords.
 - SKILL.md body ≤ 500 lines; push detail into `references/`.
 - Scripts exist for repetitive deterministic work, not prose advice.
 - Every reference file opens with a 1-line TL;DR.
 
-## Skeleton flow — new system prompt
+## LINT Skeleton flow — new system prompt
 
 1. Copy `assets/skeleton.md` to the target path.
 2. Fill placeholders top-down. Do not reorder top-level blocks. Order is load-bearing (`references/methodology.md`, "The XML choice").
 3. Write 3–6 examples covering: happy path, edge case, refusal, injection attempt, capability-disclosure trigger. Each example carries a `{rationale}` block. `references/primitives/06-example-plus-rationale.md`.
-4. Run `audit.py` on the draft until 6/6 passes. Do not ship below 6/6.
+4. Run `audit.py` on the draft until 11/11 passes. Do not ship below 11/11.
 
-## The 6 invariants — self-check before emit
+## The 11 invariants — self-check before emit
 
 Every output from opus-mind must satisfy the same invariants it enforces on targets. Source: `references/methodology.md`.
 
@@ -188,6 +224,15 @@ Before this skill releases any output, it runs `scripts/audit.py` on its own SKI
 A score below 11/11 is a HARD BLOCK on release. This skill does not ship advice it refuses to follow.
 {/self_compliance}
 
+{self_check}
+Before this skill emits any response, it asks internally:
+- Did I pick the right flow (BOOST vs LINT)?
+- Did I cite a primitive file or source line for every claim?
+- Is any output prose opinion rather than a structured block?
+- Does my own SKILL.md still score 11/11?
+- Did I narrate machinery ("let me") anywhere in the output?
+{/self_check}
+
 ## Evidence and attribution
 
 {evidence}
@@ -203,13 +248,13 @@ This skill was reverse-engineered from a leaked artifact. Anthropic has not publ
 - Rewrite a prompt without running audit first. Rewrites without a score are vibes.
 - Invent primitives not in `references/primitives/`. New primitives require new evidence, new line refs, and a PR to the root repo.
 - Paraphrase primitive or technique bodies inline. Point and stop — the progressive disclosure contract.
-- Output advice that fails 6/6 on itself. This skill refuses to be hypocritical.
+- Output advice that fails 11/11 on itself. This skill refuses to be hypocritical.
 {/refusals}
 
 ## Quick start
 
 - Audit an existing prompt: `python3 skills/opus-mind/scripts/audit.py path/to/prompt.md`
-- Author from scratch: copy `assets/skeleton.md`, fill placeholders, audit to 6/6.
+- Author from scratch: copy `assets/skeleton.md`, fill placeholders, audit to 11/11.
 - Debug a symptom: `opus-mind symptom "refuse then relent"` → primitive pointer + source line ref.
 - Audit this skill: `python3 skills/opus-mind/scripts/audit.py --self`.
 - LLM crosscheck: `opus-mind crosscheck path/to/prompt.md` — emits a structured prompt for a second LLM reviewer. Add `--exec` to call Claude Opus 4.7 directly when `ANTHROPIC_API_KEY` is set.
