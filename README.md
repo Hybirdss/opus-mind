@@ -432,9 +432,7 @@ opus-4-7-decoded/
 
 ---
 
-## Quotable one-liners
-
-Copy and use wherever:
+## We did
 
 - **"Anthropic did the prompt-engineering homework on a 1,408-line system prompt. You get the answer key."**
 - **"The only prompt linter where every rule traces to a specific line of Claude's own system prompt."**
