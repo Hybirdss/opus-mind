@@ -127,7 +127,7 @@ def test_audit_stdin_roundtrip():
         input=good_text, capture_output=True, text=True,
     )
     assert result.returncode == 0
-    assert "6/6" in result.stdout
+    assert "11/11" in result.stdout
 
 
 def test_decode_stdin_roundtrip():
@@ -351,7 +351,7 @@ def test_cli_self_audit_exits_zero():
         [str(CLI_PATH), "self-audit"], capture_output=True, text=True,
     )
     assert result.returncode == 0
-    assert "6/6" in result.stdout
+    assert "11/11" in result.stdout
 
 
 def test_cli_unknown_command_exits_nonzero():

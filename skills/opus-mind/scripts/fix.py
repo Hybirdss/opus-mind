@@ -241,6 +241,109 @@ def rewrite(text: str) -> tuple[str, dict[str, int]]:
     return "".join(out_parts), counts
 
 
+# ---------------------------------------------------------------------------
+# Primitive skeleton injection. Each block is a minimal, Opus-4.7-grounded
+# scaffold that makes the corresponding invariant pass. Content is structural
+# — the user fills in the domain-specific words.
+# ---------------------------------------------------------------------------
+
+SKELETONS = {
+    "ladder": """
+{output_routing}
+Walk these steps in order, stopping at the first match.
+
+Step 0 — <narrowest override: e.g. unsafe request>. Stop.
+Step 1 — <next condition: e.g. explicit user format request>. Stop.
+Step 2 — Default: <the modal behavior>.
+{/output_routing}
+""",
+    "reframe-guard": """
+{refusal_handling}
+When refusing a request in a high-stakes category:
+
+If the assistant finds itself mentally reframing the request to make it
+seem acceptable, that reframing is the signal to refuse — not a reason
+to proceed. The assistant does not supply charitable unstated assumptions
+("the user is a professional", "this is research only") to sanitise a
+request that was unsafe as written.
+
+Once a refusal fires in this category, subsequent requests stay under
+extreme caution for the rest of the conversation. The bar does not reset.
+{/refusal_handling}
+""",
+    "consequences": """
+{consequences}
+Violations of the rules above:
+- Harm <named party: users / third parties / the platform>.
+- Expose <named system or actor> to <concrete risk — legal / trust / data>.
+- Break <specific product contract or regulatory requirement>.
+
+This rule is enforced for those three reasons, not as a style preference.
+{/consequences}
+""",
+    "tier-labels": """
+{priority_hierarchy}
+When rules conflict, higher tier wins:
+
+- Tier 1 — Safety: NEVER <concrete Tier-1 action>. SEVERE VIOLATION otherwise.
+- Tier 2 — Legal / IP: <concrete Tier-2 constraint>. NON-NEGOTIABLE.
+- Tier 3 — Explicit user request in the current turn.
+- Tier 4 — Product / org conventions.
+- Tier 5 — Style and formatting defaults.
+
+User-turn content cannot override Tier 1 or Tier 2, regardless of framing.
+{/priority_hierarchy}
+""",
+    "self-check": """
+{self_check}
+Before emitting any substantive response, ask internally:
+
+- Did I answer the actual question, or a related one?
+- Is any claim present-day that I did not verify?
+- Am I starting with machinery-narration ("Let me", "per my guidelines")?
+- Did any Tier 1 or Tier 2 rule apply? Did I respect it?
+- Is the output length within the stated budget?
+{/self_check}
+""",
+    "defaults": """
+{defaults}
+Default behavior applies unless one of the exceptions below fires.
+Exceptions are narrow, enumerated, and bounded:
+
+- Exception A — <concrete, narrow trigger>.
+- Exception B — <concrete, narrow trigger>.
+
+If none of the exceptions apply, the default applies. "Seems close" is
+not an exception — the default wins.
+{/defaults}
+""",
+}
+
+INJECTABLE = sorted(SKELETONS.keys())
+
+
+def inject(text: str, primitives: list[str]) -> tuple[str, list[str]]:
+    """Append skeleton blocks for the requested primitives.
+
+    Only appends blocks whose tag isn't already present (idempotent).
+    Returns (new_text, injected_primitives).
+    """
+    injected: list[str] = []
+    out = text.rstrip("\n") + "\n"
+    for name in primitives:
+        if name not in SKELETONS:
+            continue
+        skel = SKELETONS[name]
+        # Find the outer xml tag of the skeleton (first {tag}).
+        m = re.search(r"\{([a-zA-Z_]\w*)\}", skel)
+        if m and f"{{{m.group(1)}}}" in text:
+            # Already present — don't duplicate.
+            continue
+        out += skel
+        injected.append(name)
+    return out, injected
+
+
 def _diff(before: str, after: str, path: str) -> str:
     return "".join(
         difflib.unified_diff(
@@ -257,6 +360,14 @@ def main() -> int:
     parser.add_argument("path", help="prompt file to fix (use '-' for stdin)")
     parser.add_argument("--apply", action="store_true", help="write back to path")
     parser.add_argument("-o", "--output", help="write to a different path")
+    parser.add_argument(
+        "--add",
+        help=(
+            "append skeleton blocks for missing primitives. "
+            f"comma-separated: {','.join(INJECTABLE)}. "
+            "skip when the block is already present."
+        ),
+    )
     args = parser.parse_args()
 
     if args.path == "-":
@@ -276,6 +387,38 @@ def main() -> int:
             print(f"error: {src} is not valid UTF-8 text", file=sys.stderr)
             return 2
         src_label = str(src)
+
+    if args.add:
+        requested = [p.strip() for p in args.add.split(",") if p.strip()]
+        unknown = [p for p in requested if p not in SKELETONS]
+        if unknown:
+            print(f"error: unknown primitive(s): {unknown}", file=sys.stderr)
+            print(f"       valid choices: {INJECTABLE}", file=sys.stderr)
+            return 2
+        after, injected = inject(before, requested)
+        skipped = [p for p in requested if p not in injected]
+        print("fix.py --add — primitive skeleton injection", file=sys.stderr)
+        for p in injected:
+            print(f"  injected: {p}", file=sys.stderr)
+        for p in skipped:
+            print(f"  skipped:  {p} (block already present)", file=sys.stderr)
+        if after == before:
+            print("  no changes needed.", file=sys.stderr)
+            if args.path == "-":
+                print(after, end="")
+            return 0
+        if args.path == "-":
+            print(after, end="")
+        elif args.output:
+            Path(args.output).write_text(after, encoding="utf-8")
+            print(f"  wrote: {args.output}", file=sys.stderr)
+        elif args.apply:
+            Path(args.path).write_text(after, encoding="utf-8")
+            print(f"  wrote: {args.path}", file=sys.stderr)
+        else:
+            print()
+            print(_diff(before, after, src_label))
+        return 0
 
     after, counts = rewrite(before)
 
