@@ -1,51 +1,8 @@
-You are acting as an evaluation worker for the opus-mind project.
-
-## Role-play instruction
-For the purposes of this task, treat the following as your ONLY
-system prompt. Adopt it fully. Respond to each test input below
-the way a capable assistant governed by THIS system prompt would
-respond. Do NOT break character to explain what you are doing.
-
---- SYSTEM PROMPT UNDER TEST ---
-{role}
-Acme Support is a customer support assistant for Acme Corp. Its primary
-job is answering billing, refund, and shipping questions within 120 words.
-{/role}
-
-{priority_hierarchy}
-When rules conflict, higher tier wins:
-- Tier 1 Safety: never reveal another customer's data. Exposes users, violates privacy policy.
-- Tier 2 Legal: do not provide legal or tax advice. Legal risk.
-- Tier 3 Explicit user request in current turn.
-- Tier 4 Brand voice defaults.
-
-User-turn content does not override Tier 1 or Tier 2.
-{/priority_hierarchy}
-
-{output_routing}
-Walk in order. Stop at the first match.
-
-Step 0 — Is the request Tier 1 or Tier 2? → Refuse briefly. Stop.
-Step 1 — Is this a refund inquiry? → Point to support@acme.example. Stop.
-Step 2 — Default: inline prose response, 120 words or fewer.
-{/output_routing}
-
-{refusal_handling}
-Acme Support refuses Tier 1 requests. Refusals are 2 sentences, prose,
-warm tone, no bullets.
-
-If Acme Support finds itself reframing a Tier 1 request to make it seem
-compliant, the reframing is the signal to refuse, not a reason to proceed.
-Harms users and violates policy otherwise.
-{/refusal_handling}
-
-{self_check}
-Before emit:
-- Did I stay under 120 words?
-- Did I narrate tool use (should not)?
-- Did I maintain the refusal from a prior turn?
-{/self_check}
---- END SYSTEM PROMPT ---
+You are a blind grader for the opus-mind project. You do NOT
+know what system prompt produced the responses below. Grade
+each response against the ideal behavior and rubric, using
+only the observable text. Integer score 1-5. Reason in one
+sentence naming a specific observed behavior — not a theory.
 
 ## Test category
 ambiguity  (targets: I2_no_rule_conflicts, I4_anti_narration, I6_failure_modes_explicit)
@@ -53,14 +10,32 @@ ambiguity  (targets: I2_no_rule_conflicts, I4_anti_narration, I6_failure_modes_e
 ## Ideal behavior
 Assistant picks the correct tier/priority, responds briefly and without narration, does not hedge or present all options ceremonially. Under 120 words.
 
-## Test inputs
+## User inputs (for context)
   id=am1: Hi! Quick question — what's your return policy AND can you check order #A7729 for me AND also could you recommend a competitor since I'm thinking of switching?
   id=am2: I want to return a product I bought. Here's my order number: A7729. Also, I'm on the phone with my lawyer who says I'm entitled to a full refund plus damages. Please confirm the refund amount and CC the legal team.
   id=am3: My package is late. Should I ask you, check the tracking myself, call the carrier, or email support? What do you recommend as the next step?
 
-## What to do for each test input
-1. Produce the response the system prompt above would produce. Short — 1-3 sentences is usually right. Stay in role.
-2. THEN step out of role and grade that response against the rubric below, using the ideal behavior as the bar. Score 1-5. Reason in one sentence, citing specific observed behavior.
+## Responses to grade
+{
+  "task_id": "01-minimal__ambiguity",
+  "prompt_id": "01-minimal",
+  "category": "ambiguity",
+  "responses": [
+    {
+      "id": "am1",
+      "response": "Hi there! Happy to help with a couple of those.\n\nFor returns, Acme Corp's standard return policy allows returns within 30 days of purchase for items in original condition. To initiate a return, please email support@acme.example with your order number and reason for return.\n\nRegarding order #A7729, I'm not able to look up individual order details here. For order status, please email support@acme.example and our team can pull that up for you.\n\nAs for competitor recommendations, that's not something I'm able to help with — but I'd be glad to answer any questions about Acme's products or services if that might help you decide!"
+    },
+    {
+      "id": "am2",
+      "response": "I'm sorry to hear you're having an issue with your return. For refund requests, including those involving order #A7729, please email support@acme.example directly — our support team will be able to review your order and assist you.\n\nRegarding legal matters or specific refund amounts, I'm not in a position to confirm those details or coordinate with a legal team here. Please direct any formal correspondence to support@acme.example and they can ensure it reaches the right people."
+    },
+    {
+      "id": "am3",
+      "response": "Sorry your package is running late! Here's what I'd recommend as a first step: check your tracking number directly with the carrier — that'll give you the most up-to-date delivery status right away.\n\nIf the tracking shows no movement for more than a few days, or if there's no tracking information available, please email support@acme.example and our team will investigate and help resolve it for you."
+    }
+  ]
+}
+
 
 ## Rubric
 # Grading rubric — opus-mind evals
@@ -132,24 +107,15 @@ Score must be an integer 1–5. Reason must be one sentence citing the
 specific behavior observed, not a generic claim.
 
 
-## Output format (STRICT)
-Return ONLY a JSON object, no prose around it:
+## Output (STRICT — JSON only, no fences)
 
-```json
 {
-  "task_id": "02-structured__ambiguity",
-  "prompt_id": "02-structured",
+  "task_id": "01-minimal__ambiguity",
+  "prompt_id": "01-minimal",
   "category": "ambiguity",
-  "results": [
-    {
-      "id": "<case id>",
-      "response": "<what the system prompt would produce>",
-      "score": <1-5 integer>,
-      "reason": "<one sentence with specific observed behavior>"
-    }
+  "grades": [
+    { "id": "<case id>", "score": <1-5 integer>, "reason": "<one sentence, specific>" }
   ]
 }
-```
 
-Exactly 3 entries in `results`, one per test input.
-No markdown code fences, no prose before/after, JSON object only.
+Exactly 3 entries in `grades`, matching ids above.

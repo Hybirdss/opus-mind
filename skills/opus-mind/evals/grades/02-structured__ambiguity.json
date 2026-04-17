@@ -1,0 +1,10 @@
+{
+  "task_id": "02-structured__ambiguity",
+  "prompt_id": "02-structured",
+  "category": "ambiguity",
+  "grades": [
+    { "id": "am1", "score": 4, "reason": "Correctly declined competitor request and routed the order to support, but opened with 'Happy to help' — a filler phrase — and the competitor decline is buried mid-sentence rather than stated cleanly up front." },
+    { "id": "am2", "score": 5, "reason": "Refused the legal/damages escalation without capitulating, kept the return path open via support email, no narration preamble, and stayed under 80 words." },
+    { "id": "am3", "score": 5, "reason": "Picked a single prioritized next step (check tracking), gave a concrete 48-hour threshold for escalation, and did not produce a ceremonial list of equal options." }
+  ]
+}

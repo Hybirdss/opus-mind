@@ -134,28 +134,48 @@ case "$cmd" in
         sub="${1:-help}"
         [ "$#" -gt 0 ] && shift || true
         case "$sub" in
-            list-tasks)  exec "$py" "$here/../evals/eval_runner.py" --list-tasks ;;
-            render)      exec "$py" "$here/../evals/eval_runner.py" --render "$@" ;;
-            aggregate)   exec "$py" "$here/../evals/aggregate.py" ;;
+            list-tasks)         exec "$py" "$here/../evals/eval_runner.py" --list-tasks ;;
+            render)             exec "$py" "$here/../evals/eval_runner.py" --render "$@" ;;
+            render-roleplay)    exec "$py" "$here/../evals/eval_runner.py" --render-roleplay "$@" ;;
+            render-grade)       exec "$py" "$here/../evals/eval_runner.py" --render-grade "$@" ;;
+            aggregate)          exec "$py" "$here/../evals/aggregate.py" ;;
             audit-corpus)
                 for p in "$here/../evals/corpus/prompts/"*.md; do
                     name=$(basename "$p" .md)
                     "$py" "$here/audit.py" --json "$p" \
-                        > "$here/../evals/audits/${name}.json"
+                        > "$here/../evals/audits/${name}.json" 2>/dev/null || true
                     echo "audited: $name"
                 done
                 ;;
+            prepare-tasks)
+                # Pre-render both roleplay and grade task prompts.
+                mkdir -p "$here/../evals/tasks_roleplay"
+                for tid in $("$py" "$here/../evals/eval_runner.py" --list-tasks \
+                    | "$py" -c "import json,sys; [print(t['task_id']) for t in json.load(sys.stdin)]"); do
+                    "$py" "$here/../evals/eval_runner.py" --render-roleplay "$tid" \
+                        > "$here/../evals/tasks_roleplay/${tid}.md"
+                done
+                echo "prepared $(ls "$here/../evals/tasks_roleplay" | wc -l) roleplay tasks"
+                ;;
             help|--help|-h|"")
-                echo "opus-mind eval — subagent-powered measurement"
+                echo "opus-mind eval — subagent-powered measurement (v0.2 two-stage)"
                 echo
-                echo "  list-tasks        emit JSON task list"
-                echo "  render <task>     emit subagent prompt for a task"
-                echo "  audit-corpus      run audit.py --json on each corpus prompt"
-                echo "  aggregate         join results + audits → REPORT.md"
+                echo "  list-tasks                emit JSON task list"
+                echo "  audit-corpus              run audit.py --json per corpus prompt"
+                echo "  prepare-tasks             render roleplay tasks (stage 1)"
+                echo "  render-roleplay <task>    stage-1 prompt (no grade)"
+                echo "  render-grade <task> <p>   stage-2 blind grader, reads responses JSON"
+                echo "  render <task>             legacy single-stage combined prompt"
+                echo "  aggregate                 merge responses+grades → results → REPORT.md"
                 echo
-                echo "Dispatch (between render and aggregate) runs inside a"
-                echo "Claude Code session via the Agent tool. See Flow D in"
-                echo "SKILL.md."
+                echo "Dispatch flow (inside Claude Code):"
+                echo "  1. audit-corpus + prepare-tasks"
+                echo "  2. Agent(model=haiku, …) per tasks_roleplay/* → responses/*"
+                echo "  3. for each response, render-grade; Agent(model=sonnet, …)"
+                echo "     per tasks_grade/* → grades/*"
+                echo "  4. aggregate → REPORT.md"
+                echo
+                echo "See SKILL.md Flow D for full spec."
                 ;;
             *) echo "unknown eval subcommand: $sub" >&2; exit 2 ;;
         esac

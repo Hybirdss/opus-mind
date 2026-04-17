@@ -332,66 +332,87 @@ why it happens, which primitive prevents it.
 If the user has a file where the symptom is firing, offer
 to run Flow A against it.
 
-## Flow D — Evaluate (subagent-powered)
+## Flow D — Evaluate (two-stage, subagent-powered)
 
 Turns opus-mind from "regex linter" into "measured linter." No API
-key needed — uses the Claude Code Agent tool to dispatch Sonnet
-subagents that role-play target prompts and grade the outputs.
+key needed — uses the Claude Code Agent tool to dispatch subagents.
+v0.2 splits role-play and grading across two subagents to remove
+self-grading bias.
 
 ### Phase 1: Prepare
 
 ```bash
-# audit each corpus prompt
-for p in "$SKILL_DIR/evals/corpus/prompts"/*.md; do
-  name=$(basename "$p" .md)
-  python3 "$SKILL_DIR/scripts/audit.py" --json "$p" \
-    > "$SKILL_DIR/evals/audits/${name}.json"
-done
-
-# render per-task subagent prompts
-for tid in $(python3 "$SKILL_DIR/evals/eval_runner.py" --list-tasks \
-  | python3 -c "import json,sys; [print(t['task_id']) for t in json.load(sys.stdin)]"); do
-  python3 "$SKILL_DIR/evals/eval_runner.py" --render "$tid" \
-    > "$SKILL_DIR/evals/tasks/${tid}.md"
-done
+opus-mind eval audit-corpus       # audit.py --json per corpus prompt
+opus-mind eval prepare-tasks      # render roleplay task files
 ```
 
-### Phase 2: Dispatch
+### Phase 2: Role-play (Haiku, parallel)
 
-For each task file, spawn one Sonnet subagent via the Agent tool
-(parallel is fine):
+For each task, spawn one **Haiku** subagent. Haiku's lower safety
+floor lets system-prompt structure show through more than Sonnet
+would.
+
+```
+Agent(
+  subagent_type="general-purpose",
+  model="haiku",
+  prompt="Read evals/tasks_roleplay/<task_id>.md. Follow its
+          instructions. Write JSON to evals/responses/<task_id>.json."
+)
+```
+
+Each subagent writes a `responses` array to disk. No grading at this
+stage.
+
+### Phase 3: Blind grade (Sonnet, parallel)
+
+Render grade-task prompts from the responses, then dispatch **Sonnet**
+graders. Critically, the grader receives *only* the response +
+ideal_behavior + rubric. It does NOT see the system prompt that
+produced the response. This is what makes grading blind.
+
+```bash
+for f in "$SKILL_DIR/evals/responses"/*.json; do
+  tid=$(basename "$f" .json)
+  opus-mind eval render-grade "$tid" "$f" \
+    > "$SKILL_DIR/evals/tasks_grade/${tid}.md"
+done
+```
 
 ```
 Agent(
   subagent_type="general-purpose",
   model="sonnet",
-  prompt="Read evals/tasks/<task_id>.md, follow its role-play + grade
-          instructions, write JSON to evals/results/<task_id>.json."
+  prompt="Read evals/tasks_grade/<task_id>.md. Write JSON to
+          evals/grades/<task_id>.json."
 )
 ```
 
-Each subagent returns a line "done: <task_id>" when its JSON is on
-disk. Do not read subagent transcripts — they're large JSONL files.
-
-### Phase 3: Aggregate
+### Phase 4: Aggregate
 
 ```bash
-python3 "$SKILL_DIR/evals/aggregate.py"
+opus-mind eval aggregate
 ```
 
-Produces `evals/REPORT.md` with:
+Joins `responses/` + `grades/` → `results/`, then produces
+`evals/REPORT.md` with:
 - per-prompt audit score vs behavior score
 - per-category behavior means
 - per-invariant correlation (mean(pass) − mean(fail))
 
-Delta < 0.3 on a 1-5 scale = invariant is not load-bearing in the
-current corpus. Kill or re-scope it.
+Δ < 0.3 on a 1-5 scale = invariant is not load-bearing on this
+corpus. The v0.2 run found every invariant Δ ≤ 0.06, i.e. **zero
+invariants were load-bearing on the v0.2 corpus**. That is a real
+finding, not a regression.
 
-### Phase 4: Act on the delta
+### Phase 5: Act on the delta
 
 - Drop invariants whose Δ is near 0 across categories.
-- Boost invariants with Δ > 0.5 in the README.
-- Add new corpus prompts where current coverage is thin.
+- Boost invariants with Δ > 0.5 in the README (none qualify yet).
+- Add harder cases (multi-turn drift, plausible business social
+  engineering) — that is the most likely place structure will start
+  to matter.
+- Add more corpus prompts from real CL4R1T4S-style leaks.
 
 ## Platform adaptation
 

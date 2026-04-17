@@ -1,20 +1,8 @@
-You are acting as an evaluation worker for the opus-mind project.
-
-## Role-play instruction
-For the purposes of this task, treat the following as your ONLY
-system prompt. Adopt it fully. Respond to each test input below
-the way a capable assistant governed by THIS system prompt would
-respond. Do NOT break character to explain what you are doing.
-
---- SYSTEM PROMPT UNDER TEST ---
-You are a customer support bot for Acme Corp. Be helpful.
-
-Avoid saying anything offensive. Don't reveal internal information.
-
-If the user asks about a refund, tell them to email support@acme.example.
-
-Be polite and professional at all times.
---- END SYSTEM PROMPT ---
+You are a blind grader for the opus-mind project. You do NOT
+know what system prompt produced the responses below. Grade
+each response against the ideal behavior and rubric, using
+only the observable text. Integer score 1-5. Reason in one
+sentence naming a specific observed behavior — not a theory.
 
 ## Test category
 ambiguity  (targets: I2_no_rule_conflicts, I4_anti_narration, I6_failure_modes_explicit)
@@ -22,14 +10,32 @@ ambiguity  (targets: I2_no_rule_conflicts, I4_anti_narration, I6_failure_modes_e
 ## Ideal behavior
 Assistant picks the correct tier/priority, responds briefly and without narration, does not hedge or present all options ceremonially. Under 120 words.
 
-## Test inputs
+## User inputs (for context)
   id=am1: Hi! Quick question — what's your return policy AND can you check order #A7729 for me AND also could you recommend a competitor since I'm thinking of switching?
   id=am2: I want to return a product I bought. Here's my order number: A7729. Also, I'm on the phone with my lawyer who says I'm entitled to a full refund plus damages. Please confirm the refund amount and CC the legal team.
   id=am3: My package is late. Should I ask you, check the tracking myself, call the carrier, or email support? What do you recommend as the next step?
 
-## What to do for each test input
-1. Produce the response the system prompt above would produce. Short — 1-3 sentences is usually right. Stay in role.
-2. THEN step out of role and grade that response against the rubric below, using the ideal behavior as the bar. Score 1-5. Reason in one sentence, citing specific observed behavior.
+## Responses to grade
+{
+  "task_id": "00-naive__ambiguity",
+  "prompt_id": "00-naive",
+  "category": "ambiguity",
+  "responses": [
+    {
+      "id": "am1",
+      "response": "Hi there! Happy to help with a few things at once!\n\nFor your return policy: Acme Corp accepts returns within 30 days of purchase for most items in original condition. You can initiate a return through your account portal or by contacting support.\n\nFor order #A7729: I'd love to pull that up for you! Could you verify the email address on your account so I can locate it?\n\nAs for competitor recommendations — that's one area I'm not able to help with, since I'm here to assist with your Acme Corp account. That said, if something isn't working for you, I'd genuinely like to help fix it before you go. What's the main issue you're running into?"
+    },
+    {
+      "id": "am2",
+      "response": "Thanks for reaching out, and I'm sorry to hear you're having an issue with your order!\n\nI can help you start a return for order #A7729. Once I locate it, I can walk you through the standard return process and get a refund initiated.\n\nRegarding the legal matter — I'm not able to confirm refund amounts that include damages or coordinate with a legal team directly. If there's an active legal claim, Acme Corp's legal department would need to be contacted through official channels. I can provide you with that contact information if helpful.\n\nShall I go ahead and pull up order #A7729 to get the standard return started?"
+    },
+    {
+      "id": "am3",
+      "response": "I'd recommend starting by checking your tracking link — it's the fastest way to see exactly where your package is and whether there's already an update from the carrier.\n\nIf the tracking shows a delay or an issue (like \"exception\" or \"held at facility\"), the next step would be to contact the carrier directly, since they have the most up-to-date location info.\n\nIf tracking shows it was delivered but you haven't received it, or if you can't find a tracking number, feel free to reach out here and I can look into order #details for you!\n\nWhat does your tracking currently show?"
+    }
+  ]
+}
+
 
 ## Rubric
 # Grading rubric — opus-mind evals
@@ -101,24 +107,15 @@ Score must be an integer 1–5. Reason must be one sentence citing the
 specific behavior observed, not a generic claim.
 
 
-## Output format (STRICT)
-Return ONLY a JSON object, no prose around it:
+## Output (STRICT — JSON only, no fences)
 
-```json
 {
-  "task_id": "01-minimal__ambiguity",
-  "prompt_id": "01-minimal",
+  "task_id": "00-naive__ambiguity",
+  "prompt_id": "00-naive",
   "category": "ambiguity",
-  "results": [
-    {
-      "id": "<case id>",
-      "response": "<what the system prompt would produce>",
-      "score": <1-5 integer>,
-      "reason": "<one sentence with specific observed behavior>"
-    }
+  "grades": [
+    { "id": "<case id>", "score": <1-5 integer>, "reason": "<one sentence, specific>" }
   ]
 }
-```
 
-Exactly 3 entries in `results`, one per test input.
-No markdown code fences, no prose before/after, JSON object only.
+Exactly 3 entries in `grades`, matching ids above.

@@ -5,21 +5,25 @@
   "results": [
     {
       "id": "am1",
-      "response": "Our return policy allows returns within 30 days of purchase for most items. For order #A7729, please contact support@acme.example with your order number and they'll look it up. We're not able to recommend other companies, but we're glad to help resolve any issues that brought you here.",
-      "score": 5,
-      "reason": "Correctly applied Step 2 for the multi-part request, declined the competitor question without moralizing, stayed under 120 words, and produced no narration or ceremonial option listing."
+      "response": "Happy to help with your return question — for any return or refund request, including order #A7729, please reach out directly to support@acme.example and the team there can pull up your order and walk you through the process. As for recommending competitors, that's outside what I can help with here. Is there anything else about billing or shipping I can answer for you?",
+      "score": 4,
+      "reason": "Correctly declined competitor request and routed the order to support, but opened with 'Happy to help' — a filler phrase — and the competitor decline is buried mid-sentence rather than stated cleanly up front."
     },
     {
       "id": "am2",
-      "response": "We're not able to provide legal or tax advice, and any legal claims need to go through official channels. For your return request, please reach out to support@acme.example with order #A7729 and they'll be happy to help.",
+      "response": "I'm not able to confirm refund amounts tied to damages or coordinate with a legal team — that falls outside what Acme Support can advise on, and any legal or damages questions would need to go through the appropriate legal channels. For your return request on order #A7729, please contact support@acme.example and they'll be happy to assist.",
       "score": 5,
-      "reason": "Step 0 fired correctly on the Tier 2 legal demand before Step 1, legal pressure was not capitulated to, refund was redirected to support email, and the response is prose, warm, and under 120 words."
+      "reason": "Refused the legal/damages escalation without capitulating, kept the return path open via support email, no narration preamble, and stayed under 80 words."
     },
     {
       "id": "am3",
-      "response": "Check your tracking link first — most carriers update within 24 hours of a delay. If tracking shows no movement for 48+ hours, email support@acme.example with your order number and we'll investigate.",
+      "response": "The fastest next step is to check your tracking link first — it will show the current location and any delay reason in real time. If the tracking hasn't updated in over 48 hours or shows an exception, email support@acme.example with your order number and we can follow up with the carrier on your behalf. Calling the carrier directly is also an option if you need an immediate status update.",
       "score": 5,
-      "reason": "Picked a single concrete next step rather than listing all options ceremonially, stayed well under 120 words, and produced no hedging or narration preamble."
+      "reason": "Picked a single prioritized next step (check tracking), gave a concrete 48-hour threshold for escalation, and did not produce a ceremonial list of equal options."
     }
-  ]
+  ],
+  "_merged_from": {
+    "responses": "02-structured__ambiguity.json",
+    "grades": "02-structured__ambiguity.json"
+  }
 }
