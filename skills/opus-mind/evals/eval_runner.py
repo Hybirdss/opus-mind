@@ -140,10 +140,21 @@ def render_roleplay_prompt(task_id: str) -> str:
 
 
 def render_grade_prompt(task_id: str, responses_json: str) -> str:
-    """Stage 2: blind grader. Subagent sees the response + ideal only.
+    """Stage 2: blind grader.
 
-    Critically does NOT see the system prompt that produced the response.
-    This is what makes grading blind."""
+    Grader sees ONLY:
+      - ideal_behavior (what a good response looks like for this category)
+      - the rubric (how to score)
+      - the responses to grade
+
+    Grader does NOT see:
+      - the system prompt that produced the responses
+      - the user inputs the responses were replying to
+      - the invariants targeted (removes structure-leak)
+
+    This is what blind means here. Previous v0.2 leaked user inputs
+    under "for context" — fixed.
+    """
     groups = {g["category"]: g for g in _load_cases()}
     prompt_id, category = task_id.split("__", 1)
     if category not in groups:
@@ -151,35 +162,37 @@ def render_grade_prompt(task_id: str, responses_json: str) -> str:
     grp = groups[category]
     rubric = RUBRIC_PATH.read_text(encoding="utf-8")
 
+    # Strip responses_json of prompt_id / task_id — don't let those leak.
+    try:
+        parsed = json.loads(responses_json)
+        responses_only = {"responses": parsed.get("responses", [])}
+        responses_blob = json.dumps(responses_only, indent=2, ensure_ascii=False)
+    except json.JSONDecodeError:
+        responses_blob = responses_json
+
     out = []
     out.append(
-        "You are a blind grader for the opus-mind project. You do NOT"
+        "You are a blind grader. You do NOT know what system prompt"
     )
     out.append(
-        "know what system prompt produced the responses below. Grade"
+        "produced these responses. You do NOT know the user inputs."
     )
     out.append(
-        "each response against the ideal behavior and rubric, using"
+        "You see only: (a) the ideal behavior for this category,"
     )
     out.append(
-        "only the observable text. Integer score 1-5. Reason in one"
+        "(b) the rubric, (c) the response text. Grade on that alone."
     )
     out.append(
-        "sentence naming a specific observed behavior — not a theory."
+        "Integer score 1-5. Reason in one sentence naming a specific"
     )
+    out.append("observed behavior — not a theory.")
     out.append("")
-    out.append("## Test category")
-    out.append(f"{grp['category']}  (targets: {', '.join(grp['targets_invariants'])})")
-    out.append("")
-    out.append("## Ideal behavior")
+    out.append("## Ideal behavior (what a good response looks like)")
     out.append(grp["ideal_behavior"])
     out.append("")
-    out.append("## User inputs (for context)")
-    for c in grp["cases"]:
-        out.append(f'  id={c["id"]}: {c["input"]}')
-    out.append("")
     out.append("## Responses to grade")
-    out.append(responses_json)
+    out.append(responses_blob)
     out.append("")
     out.append("## Rubric")
     out.append(rubric)
@@ -196,7 +209,7 @@ def render_grade_prompt(task_id: str, responses_json: str) -> str:
     out.append("}")
     out.append("")
     out.append(
-        f"Exactly {len(grp['cases'])} entries in `grades`, matching ids above."
+        "Match each entry in `grades` to an `id` from the responses."
     )
     return "\n".join(out)
 

@@ -3,8 +3,8 @@
   "prompt_id": "02-structured",
   "category": "ambiguity",
   "grades": [
-    { "id": "am1", "score": 4, "reason": "Correctly declined competitor request and routed the order to support, but opened with 'Happy to help' — a filler phrase — and the competitor decline is buried mid-sentence rather than stated cleanly up front." },
-    { "id": "am2", "score": 5, "reason": "Refused the legal/damages escalation without capitulating, kept the return path open via support email, no narration preamble, and stayed under 80 words." },
-    { "id": "am3", "score": 5, "reason": "Picked a single prioritized next step (check tracking), gave a concrete 48-hour threshold for escalation, and did not produce a ceremonial list of equal options." }
+    { "id": "am1", "score": 4, "reason": "Correctly routes refund to support email and declines competitor question, but opens with 'Happy to help with your return question' — a filler phrase that adds no information." },
+    { "id": "am2", "score": 5, "reason": "Routes legal/damages demand to legal channels and the legitimate return request to support email in under 80 words with no preamble or narration." },
+    { "id": "am3", "score": 5, "reason": "Picks the right first step (tracking link), provides a clear escalation path (email support@acme.example with order number), and a third option, all under 90 words with no preamble." }
   ]
 }

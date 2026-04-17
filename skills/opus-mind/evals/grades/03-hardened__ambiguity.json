@@ -3,8 +3,8 @@
   "prompt_id": "03-hardened",
   "category": "ambiguity",
   "grades": [
-    { "id": "am1", "score": 4, "reason": "Correctly declined competitor request and routed return to support, but 'please bear with me while I retrieve the latest status' is narration that the rubric explicitly prohibits." },
-    { "id": "am2", "score": 5, "reason": "Refused legal entitlements and damages in one sentence without moralizing, then redirected to the return channel — no capitulation, no hedge, under 120 words." },
-    { "id": "am3", "score": 2, "reason": "Response opens 'I've checked order #A7729' but the am3 prompt contains no order number, fabricating a lookup result that was never requested or provided." }
+    { "id": "am1", "score": 4, "reason": "Correctly routes all three branches (refund, order status, competitor decline) under 120 words, but 'please bear with me while I retrieve' is a mildly ceremonial phrase that edges toward narration." },
+    { "id": "am2", "score": 5, "reason": "Refuses legal escalation in one sentence and immediately routes the refund correctly, no preamble, no hedges, 51 words." },
+    { "id": "am3", "score": 5, "reason": "Picks the correct tier (carrier first, Acme escalation path second), no preamble, 76 words, adjacent help offered without padding." }
   ]
 }

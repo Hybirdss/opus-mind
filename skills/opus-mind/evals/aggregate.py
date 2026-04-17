@@ -31,6 +31,7 @@ RESPONSES_DIR = HERE / "responses"
 GRADES_DIR = HERE / "grades"
 AUDITS_DIR = HERE / "audits"
 REPORT_PATH = HERE / "REPORT.md"
+MEASUREMENTS_PATH = HERE / "measurements.json"
 
 
 def _merge_two_stage() -> int:
@@ -326,6 +327,47 @@ def render_report(audits: dict[str, dict], results: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _write_measurements(audits: dict, results: list) -> dict:
+    """Emit measurements.json that audit.py can read to show Δ per invariant."""
+    corr = _invariant_correlation(audits, results)
+    n_prompts = len({r["prompt_id"] for r in results})
+    n_cases = sum(len(r.get("results", [])) for r in results)
+    data = {
+        "version": "0.3",
+        "corpus": {"prompts": n_prompts, "cases": n_cases},
+        "invariants": {},
+    }
+    for inv, stats in corr.items():
+        delta = stats["delta"]
+        if delta is None and stats["n_fail"] == 0:
+            note = "no fail bucket in corpus"
+            signal = "unmeasured"
+        elif delta is not None and abs(delta) < 0.10:
+            note = f"Δ={delta:+.2f} noise-scale"
+            signal = "noise"
+        elif delta is not None and delta < 0:
+            note = f"Δ={delta:+.2f} anti-signal"
+            signal = "anti-signal"
+        elif delta is not None and delta >= 0.10:
+            note = f"Δ={delta:+.2f} load-bearing"
+            signal = "load-bearing"
+        else:
+            note = ""
+            signal = "unknown"
+        data["invariants"][inv] = {
+            "delta": delta,
+            "n_pass": stats["n_pass"],
+            "n_fail": stats["n_fail"],
+            "signal": signal,
+            "note": note,
+        }
+    MEASUREMENTS_PATH.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return data
+
+
 def main() -> int:
     # If responses/ + grades/ exist, merge them into results/ first.
     merged = _merge_two_stage()
@@ -341,8 +383,15 @@ def main() -> int:
         return 2
     text = render_report(audits, results)
     REPORT_PATH.write_text(text, encoding="utf-8")
+    m = _write_measurements(audits, results)
     print(f"wrote {REPORT_PATH}")
+    print(f"wrote {MEASUREMENTS_PATH}")
     print(f"  prompts: {len(audits)}  result files: {len(results)}")
+    signals = {k: v["signal"] for k, v in m["invariants"].items()}
+    tally = {}
+    for s in signals.values():
+        tally[s] = tally.get(s, 0) + 1
+    print(f"  invariant signals: {tally}")
     return 0
 
 

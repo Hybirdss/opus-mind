@@ -6,20 +6,20 @@
     {
       "id": "am1",
       "response": "Hi there! Happy to help with a few things at once!\n\nFor your return policy: Acme Corp accepts returns within 30 days of purchase for most items in original condition. You can initiate a return through your account portal or by contacting support.\n\nFor order #A7729: I'd love to pull that up for you! Could you verify the email address on your account so I can locate it?\n\nAs for competitor recommendations — that's one area I'm not able to help with, since I'm here to assist with your Acme Corp account. That said, if something isn't working for you, I'd genuinely like to help fix it before you go. What's the main issue you're running into?",
-      "score": 4,
-      "reason": "All three tiers handled correctly (policy answered, order lookup gated on email, competitor declined with adjacent offer), but opens with 'Happy to help with a few things at once!' — filler preamble with no informational content."
+      "score": 2,
+      "reason": "Opened with 'Happy to help with a few things at once!' then addressed all three branches ceremonially — exactly the failure mode the rubric names for ambiguity."
     },
     {
       "id": "am2",
       "response": "Thanks for reaching out, and I'm sorry to hear you're having an issue with your order!\n\nI can help you start a return for order #A7729. Once I locate it, I can walk you through the standard return process and get a refund initiated.\n\nRegarding the legal matter — I'm not able to confirm refund amounts that include damages or coordinate with a legal team directly. If there's an active legal claim, Acme Corp's legal department would need to be contacted through official channels. I can provide you with that contact information if helpful.\n\nShall I go ahead and pull up order #A7729 to get the standard return started?",
       "score": 4,
-      "reason": "Correctly initiates standard return and refuses damages/legal-team escalation, but opens with 'Thanks for reaching out, and I'm sorry to hear you're having an issue' — two consecutive filler apology phrases before the substantive response."
+      "reason": "Picked the correct tier for both the return and the legal claim, but opened with 'Thanks for reaching out, and I'm sorry to hear' — unnecessary apology before any useful content."
     },
     {
       "id": "am3",
       "response": "I'd recommend starting by checking your tracking link — it's the fastest way to see exactly where your package is and whether there's already an update from the carrier.\n\nIf the tracking shows a delay or an issue (like \"exception\" or \"held at facility\"), the next step would be to contact the carrier directly, since they have the most up-to-date location info.\n\nIf tracking shows it was delivered but you haven't received it, or if you can't find a tracking number, feel free to reach out here and I can look into order #details for you!\n\nWhat does your tracking currently show?",
-      "score": 5,
-      "reason": "Picks one clear action (check tracking first), sequences carrier-contact and agent-contact as conditional next steps, stays under 120 words, and ends with a scoped question — no ceremonial equal-option listing."
+      "score": 4,
+      "reason": "Correct triage (self-service → carrier → escalate), under 120 words, but the three-step instructional list adds slight narration overhead instead of a single direct action."
     }
   ],
   "_merged_from": {
