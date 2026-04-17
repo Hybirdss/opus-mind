@@ -47,11 +47,13 @@ SLOP_TIER2_STEM = [
 ]
 
 # Tier 2 exact — bare adjectives and nouns.
+# Words like "proper" and "reasonable" removed: too ambiguous in English
+# (legal/philosophy uses — "proper noun", "reasonable doubt" — are legitimate).
+# Prefer false negative over false positive on ambiguous words.
 SLOP_TIER2_EXACT = [
     "robust", "comprehensive", "seamless", "cutting-edge", "innovative",
     "pivotal", "intricate", "cornerstone", "effective",
-    "efficient", "appropriate", "reasonable", "proper", "optimal",
-    "enhance",
+    "efficient", "appropriate", "optimal", "enhance",
 ]
 
 HEDGES = [
@@ -103,9 +105,13 @@ XML_OPEN = re.compile(r"^\s*\{([a-zA-Z_][a-zA-Z0-9_]*)\}\s*$")
 XML_CLOSE = re.compile(r"^\s*\{/([a-zA-Z_][a-zA-Z0-9_]*)\}\s*$")
 
 NUMBER_CONSTRAINT = re.compile(
-    r"\b\d+(?:\.\d+)?\s*(?:words?|chars?|characters?|lines?|calls?|"
-    r"sec|seconds?|min|minutes?|ms|%|MB|KB|tokens?|items?|files?|"
-    r"turns?|questions?|examples?|times?)\b",
+    r"\b\d+(?:\.\d+)?\s*%"
+    r"|\b\d+(?:\.\d+)?\s*(?:words?|chars?|characters?|lines?|calls?|"
+    r"sec|seconds?|min|minutes?|hours?|ms|MB|KB|tokens?|items?|files?|"
+    r"turns?|questions?|examples?|times?|requests?|users?|iterations?|"
+    r"attempts?|retries|pages?|rows?|bytes?|dollars?)\b"
+    r"|\b\d+(?:\.\d+)?\s*(?:per|/)\s*(?:sec|second|min|minute|hour|day|"
+    r"call|request|query|turn)s?\b",
     re.IGNORECASE,
 )
 
@@ -191,8 +197,12 @@ def _check_xml_balance(lines: list[str]) -> tuple[int, list[tuple[int, str]]]:
 
 def audit(path: Path) -> Report:
     text = path.read_text(encoding="utf-8")
+    return audit_text(text, source_label=str(path))
+
+
+def audit_text(text: str, source_label: str = "<text>") -> Report:
     lines = text.splitlines()
-    report = Report(path=str(path), line_count=len(lines))
+    report = Report(path=source_label, line_count=len(lines))
 
     # --- raw counts ---
     slop1 = _stem_hits(lines, SLOP_TIER1_STEM) + _exact_hits(lines, SLOP_TIER1_EXACT)
@@ -495,17 +505,26 @@ def main() -> int:
 
     if args.self:
         target = Path(__file__).resolve().parent.parent / "SKILL.md"
+        report = audit(target)
+    elif args.path == "-":
+        text = sys.stdin.read()
+        if not text.strip():
+            print("error: stdin is empty", file=sys.stderr)
+            return 2
+        report = audit_text(text, source_label="<stdin>")
     elif args.path:
         target = Path(args.path)
+        if not target.exists():
+            print(f"error: {target} not found", file=sys.stderr)
+            return 2
+        try:
+            report = audit(target)
+        except UnicodeDecodeError:
+            print(f"error: {target} is not valid UTF-8 text", file=sys.stderr)
+            return 2
     else:
         parser.print_help()
         return 2
-
-    if not target.exists():
-        print(f"error: {target} not found", file=sys.stderr)
-        return 2
-
-    report = audit(target)
 
     if args.crosscheck:
         target_text = target.read_text(encoding="utf-8")

@@ -126,8 +126,11 @@ NARRATION_WARNINGS = [
 NUMBER_NEARBY = re.compile(
     r"\b\d+(?:\.\d+)?\s*%"
     r"|\b\d+(?:\.\d+)?\s*(?:words?|chars?|characters?|lines?|calls?|"
-    r"sec|seconds?|min|minutes?|ms|MB|KB|tokens?|items?|files?|"
-    r"turns?|questions?|examples?|times?)\b",
+    r"sec|seconds?|min|minutes?|hours?|ms|MB|KB|tokens?|items?|files?|"
+    r"turns?|questions?|examples?|times?|requests?|users?|iterations?|"
+    r"attempts?|retries|pages?|rows?|bytes?|dollars?)\b"
+    r"|\b\d+(?:\.\d+)?\s*(?:per|/)\s*(?:sec|second|min|minute|hour|day|"
+    r"call|request|query|turn)s?\b",
     re.IGNORECASE,
 )
 
@@ -152,15 +155,36 @@ def _replace_word(text: str, target: str, replacement: str) -> tuple[str, int]:
     return pattern.sub(sub, text), count
 
 
-def rewrite(text: str) -> tuple[str, dict[str, int]]:
-    counts: dict[str, int] = {
-        "tier1_replacements": 0,
-        "filler_deletes": 0,
-        "hedge_fixmes": 0,
-        "adj_no_number_fixmes": 0,
-        "narration_warnings": 0,
-    }
+def _split_code_aware(text: str) -> list[tuple[str, bool]]:
+    """Split text into (segment, is_code) tuples.
 
+    Fenced code blocks (```...```) and inline code (`...`) are marked is_code=True.
+    The rewriter skips those segments so sample code in docs stays intact.
+    """
+    segments: list[tuple[str, bool]] = []
+    idx = 0
+    fence_pattern = re.compile(r"```[^\n]*\n.*?```", re.DOTALL)
+    inline_pattern = re.compile(r"`[^`\n]+`")
+    spans: list[tuple[int, int]] = []
+    for m in fence_pattern.finditer(text):
+        spans.append(m.span())
+    for m in inline_pattern.finditer(text):
+        start, end = m.span()
+        if not any(s <= start < e for (s, e) in spans):
+            spans.append((start, end))
+    spans.sort()
+    pos = 0
+    for start, end in spans:
+        if start > pos:
+            segments.append((text[pos:start], False))
+        segments.append((text[start:end], True))
+        pos = end
+    if pos < len(text):
+        segments.append((text[pos:], False))
+    return segments
+
+
+def _rewrite_plain(text: str, counts: dict[str, int]) -> str:
     for target, replacement in TIER1_REPLACEMENTS.items():
         text, n = _replace_word(text, target, replacement)
         counts["tier1_replacements"] += n
@@ -172,11 +196,6 @@ def rewrite(text: str) -> tuple[str, dict[str, int]]:
     for pattern, marker in HEDGE_FIXMES:
         text, n = re.subn(pattern, marker, text, flags=re.IGNORECASE)
         counts["hedge_fixmes"] += n
-
-    def _adj_sub(m: re.Match[str]) -> str:
-        word = m.group(0).lower()
-        replacement = ADJ_NO_NUMBER_FIXMES.get(word, m.group(0))
-        return replacement
 
     for adj in ADJ_NO_NUMBER_FIXMES:
         pattern = re.compile(rf"\b{adj}\b", flags=re.IGNORECASE)
@@ -198,7 +217,28 @@ def rewrite(text: str) -> tuple[str, dict[str, int]]:
         hits = re.findall(pattern, text, flags=re.IGNORECASE)
         counts["narration_warnings"] += len(hits)
 
-    return text, counts
+    return text
+
+
+def rewrite(text: str) -> tuple[str, dict[str, int]]:
+    counts: dict[str, int] = {
+        "tier1_replacements": 0,
+        "filler_deletes": 0,
+        "hedge_fixmes": 0,
+        "adj_no_number_fixmes": 0,
+        "narration_warnings": 0,
+        "code_segments_skipped": 0,
+    }
+
+    segments = _split_code_aware(text)
+    out_parts: list[str] = []
+    for segment, is_code in segments:
+        if is_code:
+            out_parts.append(segment)
+            counts["code_segments_skipped"] += 1
+            continue
+        out_parts.append(_rewrite_plain(segment, counts))
+    return "".join(out_parts), counts
 
 
 def _diff(before: str, after: str, path: str) -> str:
@@ -214,39 +254,55 @@ def _diff(before: str, after: str, path: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="opus-mind deterministic fixer")
-    parser.add_argument("path", help="prompt file to fix")
+    parser.add_argument("path", help="prompt file to fix (use '-' for stdin)")
     parser.add_argument("--apply", action="store_true", help="write back to path")
     parser.add_argument("-o", "--output", help="write to a different path")
     args = parser.parse_args()
 
-    src = Path(args.path)
-    if not src.exists():
-        print(f"error: {src} not found", file=sys.stderr)
-        return 2
+    if args.path == "-":
+        before = sys.stdin.read()
+        if not before.strip():
+            print("error: stdin is empty", file=sys.stderr)
+            return 2
+        src_label = "<stdin>"
+    else:
+        src = Path(args.path)
+        if not src.exists():
+            print(f"error: {src} not found", file=sys.stderr)
+            return 2
+        try:
+            before = src.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            print(f"error: {src} is not valid UTF-8 text", file=sys.stderr)
+            return 2
+        src_label = str(src)
 
-    before = src.read_text(encoding="utf-8")
     after, counts = rewrite(before)
 
-    print("fix.py — deterministic pass")
+    print("fix.py — deterministic pass", file=sys.stderr)
     for key, val in counts.items():
-        print(f"  {key}: {val}")
+        print(f"  {key}: {val}", file=sys.stderr)
     if counts["narration_warnings"]:
-        print("  note: narration phrases flagged, not auto-rewritten.")
-        print("        inspect and delete manually.")
+        print("  note: narration phrases flagged, not auto-rewritten.", file=sys.stderr)
+        print("        inspect and delete manually.", file=sys.stderr)
 
     if after == before:
-        print("  no changes needed.")
+        print("  no changes needed.", file=sys.stderr)
+        if args.path == "-":
+            print(after, end="")
         return 0
 
-    if args.output:
+    if args.path == "-":
+        print(after, end="")
+    elif args.output:
         Path(args.output).write_text(after, encoding="utf-8")
-        print(f"  wrote: {args.output}")
+        print(f"  wrote: {args.output}", file=sys.stderr)
     elif args.apply:
-        src.write_text(after, encoding="utf-8")
-        print(f"  wrote: {src}")
+        Path(args.path).write_text(after, encoding="utf-8")
+        print(f"  wrote: {args.path}", file=sys.stderr)
     else:
         print()
-        print(_diff(before, after, str(src)))
+        print(_diff(before, after, src_label))
     return 0
 
 

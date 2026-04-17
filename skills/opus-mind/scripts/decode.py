@@ -59,9 +59,13 @@ PRIMITIVES = [
 XML_OPEN = re.compile(r"^\s*\{([a-zA-Z_][a-zA-Z0-9_]*)\}\s*$")
 XML_CLOSE = re.compile(r"^\s*\{/([a-zA-Z_][a-zA-Z0-9_]*)\}\s*$")
 NUMBER_CONSTRAINT = re.compile(
-    r"\b\d+(?:\.\d+)?\s*(?:words?|chars?|characters?|lines?|calls?|"
-    r"sec|seconds?|min|minutes?|ms|%|MB|KB|tokens?|items?|files?|"
-    r"turns?|questions?|examples?|times?)\b",
+    r"\b\d+(?:\.\d+)?\s*%"
+    r"|\b\d+(?:\.\d+)?\s*(?:words?|chars?|characters?|lines?|calls?|"
+    r"sec|seconds?|min|minutes?|hours?|ms|MB|KB|tokens?|items?|files?|"
+    r"turns?|questions?|examples?|times?|requests?|users?|iterations?|"
+    r"attempts?|retries|pages?|rows?|bytes?|dollars?)\b"
+    r"|\b\d+(?:\.\d+)?\s*(?:per|/)\s*(?:sec|second|min|minute|hour|day|"
+    r"call|request|query|turn)s?\b",
     re.IGNORECASE,
 )
 STEP_LADDER = re.compile(r"\bStep\s*(\d+)\b", re.IGNORECASE)
@@ -349,11 +353,15 @@ def _topic_suggestions(lines: list[str], detections: list[PrimitiveDetection]) -
 
 def decode(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
+    return decode_text(text, source_label=str(path))
+
+
+def decode_text(text: str, source_label: str = "<text>") -> dict:
     lines = text.splitlines()
     detections = [DETECTORS[num](lines) for num, _ in PRIMITIVES]
     suggestions = _topic_suggestions(lines, detections)
     return {
-        "path": str(path),
+        "path": source_label,
         "line_count": len(lines),
         "detections": detections,
         "suggestions": suggestions,
@@ -397,15 +405,26 @@ def _format_json(result: dict) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="opus-mind prompt decoder")
-    parser.add_argument("path", help="prompt file to decode")
+    parser.add_argument("path", help="prompt file to decode (use '-' for stdin)")
     parser.add_argument("--json", action="store_true", help="JSON output")
     args = parser.parse_args()
 
-    target = Path(args.path)
-    if not target.exists():
-        print(f"error: {target} not found", file=sys.stderr)
-        return 2
-    result = decode(target)
+    if args.path == "-":
+        text = sys.stdin.read()
+        if not text.strip():
+            print("error: stdin is empty", file=sys.stderr)
+            return 2
+        result = decode_text(text, source_label="<stdin>")
+    else:
+        target = Path(args.path)
+        if not target.exists():
+            print(f"error: {target} not found", file=sys.stderr)
+            return 2
+        try:
+            result = decode(target)
+        except UnicodeDecodeError:
+            print(f"error: {target} is not valid UTF-8 text", file=sys.stderr)
+            return 2
     print(_format_json(result) if args.json else _format_human(result))
     return 0
 
