@@ -15,7 +15,7 @@ A decision ladder is a sequence of `Step 0 → Step N` conditions where:
 
 ## Evidence
 
-The canonical example is the `{request_evaluation_checklist}` in `source/opus-4.7.txt`, lines 515–537:
+The canonical example is the `{request_evaluation_checklist}` in the source, lines 515–537:
 
 > `Step 0 — Does the request need a visual at all?` (stop here if no)
 > `Step 1 — Is a connected MCP tool a fit?` (use it, stop)

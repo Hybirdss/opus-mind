@@ -10,7 +10,7 @@ Attach to every high-stakes rule a **1–3 line statement of the harm it prevent
 
 ## Evidence
 
-`source/opus-4.7.txt` lines 753–759 — `{copyright_violation_consequences_reminder}`:
+the source lines 753–759 — `{copyright_violation_consequences_reminder}`:
 
 > *"Claude understands that quoting a source more than once or using quotes more than fifteen words:
 > - Harms content creators and publishers

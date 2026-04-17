@@ -16,7 +16,7 @@ An example+rationale block is:
 
 Opus 4.7 uses this structure pervasively. Three clean cases:
 
-**Copyright examples** (`source/opus-4.7.txt` lines 710–750). Each example has the structure:
+**Copyright examples** (the source lines 710–750). Each example has the structure:
 
 ```
 {example}

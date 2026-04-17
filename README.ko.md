@@ -31,7 +31,7 @@ Opus 4.7 시스템 프롬프트 (1,408줄, [elder-plinius/CL4R1T4S](https://gith
 
 ```
 opus-4-7-decoded/
-├── source/            1,408줄 원문 (CL4R1T4S 미러)
+├── source/            CL4R1T4S 미러로의 포인터 (여기엔 원문 호스팅 안 함)
 ├── methodology/       프레임워크: "프롬프트는 행동 프로그램이다"
 ├── primitives/        12개 재사용 빌딩 블록 (각 1파일)
 ├── techniques/        프리미티브 조합으로 만든 상위 패턴
@@ -75,7 +75,7 @@ opus-4-7-decoded/
 [annotations/](./annotations/) 에서 1408줄을 섹션별로 걷는다.
 
 ### Anthropic 프롬프트 엔지니어링을 리서치/글쓰기에 쓴다면
-[evidence/line-refs.md](./evidence/line-refs.md) — 이 레포의 모든 주장이 `source/opus-4.7.txt`의 라인 번호에 매핑됨. **출처 없는 주장 0**.
+[evidence/line-refs.md](./evidence/line-refs.md) — 이 레포의 모든 주장이 the source의 라인 번호에 매핑됨. **출처 없는 주장 0**.
 
 ---
 
@@ -89,11 +89,23 @@ opus-4-7-decoded/
 
 ## 출처 및 저작권
 
-원문: `source/opus-4.7.txt` — [@elder-plinius](https://github.com/elder-plinius) 가 관리하는 [CL4R1T4S](https://github.com/elder-plinius/CL4R1T4S/blob/main/ANTHROPIC/Claude-Opus-4.7.txt) 아카이브 원문 미러.
+**원문 파일:** 이 레포에는 호스팅하지 않음. canonical 미러는 [@elder-plinius](https://github.com/elder-plinius)가 관리하는 [CL4R1T4S](https://github.com/elder-plinius/CL4R1T4S/blob/main/ANTHROPIC/Claude-Opus-4.7.txt). raw-text URL, 버전 핀, 왜 호스팅을 CL4R1T4S에 맡겼는지는 [source/README.md](./source/README.md) 참조.
 
-Anthropic은 이 프롬프트를 공개한 적 없다. 원문은 유출된 엔지니어링 아티팩트로, 이 레포는 서드파티 분석으로 취급할 것. 모든 인용은 짧게 유지 (paraphrase-first — Opus 4.7 정책 그 자체를 따름).
+**분석 posture.** Anthropic은 이 프롬프트를 공개한 적 없다. 이 레포는 유출된 엔지니어링 아티팩트로 취급하고 서드파티 리서치 분석을 생산한다. 모든 실질적 인용은 비평·연구 목적의 fair use 원칙 안에서 제한되며, 모든 라인 ref는 CL4R1T4S 미러로 연결되어 독자가 맥락을 직접 확인할 수 있다.
 
-레포의 분석, 프레임워크, 프리미티브는 저자 작업. MIT 라이선스로 공개 — fork, 확장, 반박 모두 환영.
+**Anthropic과 무관.** 이 레포는 독립 분석. 여기 어떤 것도 Anthropic의 승인/파트너십/리뷰 아래 있지 않다. 해석의 오류는 저자의 것.
+
+**DMCA / takedown.** 권리자 측에서 특정 구절의 fair-use 판단이 틀렸다고 판단하면 GitHub 이슈 또는 메인테이너 이메일로 연락. **당일 대응**한다 — 법적 양보가 아니라, 선의의 연구 compliance가 적대적 자세보다 낫기 때문. 분석 프레임워크 (primitives / techniques / patterns / template) 는 독립 저작물이고 takedown 범위 밖; 원문 인용·paraphrase만 대상.
+
+**MIT 라이선스.** 레포의 분석, 프레임워크, 프리미티브는 저자 작업. fork, 확장, 반박 모두 환영.
+
+---
+
+## Meta-note: 누가 썼나
+
+이 레포의 리버스 엔지니어링은 **Claude Opus 4.7** 이 수행했다 — **분석 대상 시스템 프롬프트의 바로 그 모델**. 이건 이해 충돌이 아니다; 자기를 컴파일한 컴파일러의 역어셈블 바이너리를 읽는 프로그래머에 더 가깝다. 모델은 런타임에 자기 시스템 프롬프트에 특권적 접근이 없다 — 사용자가 보여주는 것만 볼 수 있다 — 그래서 이 분석은 **유출된 아티팩트 + 행동 관찰**에서 도출됐지, introspection이 아니다. 방향성·프레이밍·편집 판단은 사람이 주도했고, 모델은 디테일 글쓰기를 했다.
+
+이 조합이 네 사용 사례에 부적격이면 OK. 아니라면 라인 ref로 CL4R1T4S 원문을 직접 검증 가능.
 
 ---
 

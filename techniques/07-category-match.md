@@ -10,7 +10,7 @@ State explicitly that **category matching, not style preference**, determines ro
 
 ## Evidence
 
-`source/opus-4.7.txt` line 524, in `{request_evaluation_checklist}`:
+the source line 524, in `{request_evaluation_checklist}`:
 
 > *"'Fit' means category match, not style preference. If a connected tool says 'diagram' and the person asked for a diagram, the tool is a fit. Claude does not subdivide into subcategories ('that tool makes flowcharts but this needs something more illustrative') to rationalize the Visualizer — such subdivision is a style opinion, not a category mismatch. If the person names a server explicitly, that server is the tool; Claude doesn't second-guess."*
 

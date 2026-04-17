@@ -31,7 +31,7 @@ Every pattern in the prompt prevents a specific failure mode. The reverse-engine
 
 ```
 opus-4-7-decoded/
-├── source/            The 1,408-line prompt, verbatim (CL4R1T4S mirror)
+├── source/            Pointer to the canonical CL4R1T4S mirror (no hosted copy here)
 ├── methodology/       The framework: "A prompt is a behavioral program"
 ├── primitives/        12 reusable building blocks (one file each)
 ├── techniques/        Higher-level patterns built from primitives
@@ -75,7 +75,7 @@ Start with [templates/system-prompt-skeleton.md](./templates/system-prompt-skele
 [annotations/](./annotations/) walks the 1,408 lines section by section.
 
 ### If you're doing research or writing about Anthropic's prompt engineering
-[evidence/line-refs.md](./evidence/line-refs.md) maps every claim in this repo to line numbers in `source/opus-4.7.txt`. Nothing here is asserted without a source line.
+[evidence/line-refs.md](./evidence/line-refs.md) maps every claim in this repo to line numbers in the source. Nothing here is asserted without a source line.
 
 ---
 
@@ -89,11 +89,23 @@ Start with [templates/system-prompt-skeleton.md](./templates/system-prompt-skele
 
 ## Attribution & source
 
-Source file: `source/opus-4.7.txt` — verbatim mirror of the [CL4R1T4S](https://github.com/elder-plinius/CL4R1T4S/blob/main/ANTHROPIC/Claude-Opus-4.7.txt) archive maintained by [@elder-plinius](https://github.com/elder-plinius).
+**Source file:** not hosted in this repo. The canonical mirror is at [CL4R1T4S](https://github.com/elder-plinius/CL4R1T4S/blob/main/ANTHROPIC/Claude-Opus-4.7.txt), maintained by [@elder-plinius](https://github.com/elder-plinius). See [source/README.md](./source/README.md) for the raw-text URL, version pin, and why hosting is kept there.
 
-Anthropic has not published this prompt. Treat the source as a leaked engineering artifact and this repo as third-party analysis. All quotations are kept short (paraphrase-first, the Opus 4.7 policy itself).
+**Analysis posture.** Anthropic has not published this prompt. This repo treats it as a leaked engineering artifact and produces third-party research analysis. All substantive quotations are bounded by fair-use principles for research and critical commentary, with every line reference pointing back to the CL4R1T4S mirror so readers can verify context.
 
-The analysis, framework, and primitives in this repo are the author's work, released under MIT for anyone to fork, extend, or argue with.
+**Not affiliated with Anthropic.** This repo is an independent analysis. Nothing here is endorsed by, partnered with, or reviewed by Anthropic. Any errors in interpretation are the author's.
+
+**DMCA / takedown.** If you represent a rights-holder and believe the fair-use reasoning above is incorrect for any specific passage in this repo, open a GitHub issue or email the maintainer. Concerns will be acted on the same day received — not as a legal concession, but because good-faith research compliance beats adversarial posture. The analysis framework (primitives, techniques, patterns, template) is independent work and not subject to takedown; only the quotations and paraphrases from the source prompt are in scope.
+
+**MIT license.** The analysis, framework, and primitives in this repo are the author's work, released under MIT for anyone to fork, extend, or argue with.
+
+---
+
+## Meta-note: who wrote this
+
+The reverse engineering in this repo was performed by **Claude Opus 4.7** — the same model whose system prompt is being analyzed. That is not a self-dealing conflict; it is closer to a programmer reading the decompiled binary of the compiler that compiled them. The model has no privileged access to its own system prompt at runtime — it only sees what users show it — so the analysis is derived from the leaked artifact and from behavioral observation, not from introspection. Human direction, framing, and editorial judgment guided the effort throughout; the model did the detail writing.
+
+If that disqualifies the work for your use case, fair enough. If not, the line refs let you verify everything against the CL4R1T4S source directly.
 
 ---
 

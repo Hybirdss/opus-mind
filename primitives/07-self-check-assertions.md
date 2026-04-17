@@ -15,7 +15,7 @@ A self-check block is a list of **internal questions** the model asks about a ca
 
 ## Evidence
 
-`source/opus-4.7.txt` lines 699–707 — `{self_check_before_responding}`:
+the source lines 699–707 — `{self_check_before_responding}`:
 
 > Before including ANY text from search results, Claude asks internally:
 > - Could I have paraphrased instead of quoted?

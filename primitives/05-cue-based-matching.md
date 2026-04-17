@@ -17,7 +17,7 @@ This is the alternative to decision ladders when the condition is too fuzzy to e
 
 ## Evidence
 
-The archetypal example is `{past_chats_tools}` in `source/opus-4.7.txt`, line 243:
+The archetypal example is `{past_chats_tools}` in the source, line 243:
 
 > *"The signals are linguistic: possessives without context ('my dissertation,' 'our approach'), definite articles assuming shared reference ('the script,' 'that strategy'), past-tense verbs about prior exchanges ('you recommended,' 'we decided'), or direct asks ('do you remember,' 'continue where we left off'). The judgment is whether the person is writing **as if** Claude already knows something Claude doesn't see in this conversation."*
 

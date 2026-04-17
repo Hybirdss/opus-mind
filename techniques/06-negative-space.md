@@ -10,7 +10,7 @@ Write explicit **"do NOT do this"** lists. Spell out the anti-patterns. The gap 
 
 ## Evidence
 
-The `{artifact_usage_criteria}` block in `source/opus-4.7.txt` (lines 395–477) is the textbook case. The author wrote two lists:
+The `{artifact_usage_criteria}` block in the source (lines 395–477) is the textbook case. The author wrote two lists:
 
 - *"Claude uses artifacts for"* (7 items).
 - *"Claude does NOT use artifacts for"* (8 items).

@@ -30,13 +30,13 @@ The model interprets your prompt. Every adjective, every "generally", every "whe
 
 **The Opus 4.7 move:** replace adjectives with numbers. "Keep quotes short" becomes "Quotes of fifteen or more words from any single source is a SEVERE VIOLATION." "Don't over-search" becomes "1 for single facts; 3–5 for medium tasks; 5–10 for deeper research/comparisons."
 
-*Evidence:* `source/opus-4.7.txt` lines 640–641 (15-word hard limit), 620 (tool-call scaling), 871–872 (image search min 3 max 4).
+*Evidence:* the source lines 640–641 (15-word hard limit), 620 (tool-call scaling), 871–872 (image search min 3 max 4).
 
 ### I2. Eliminate rule conflicts
 
 Rule conflict is the silent killer of system prompts. Two rules that seem compatible turn out to contradict on some input, and the model picks a side based on vibes. You don't even see it happen — you just get inconsistent behavior.
 
-**The Opus 4.7 move:** **first-match-wins decision ladders**. Section [`request_evaluation_checklist`](../source/opus-4.7.txt) (line 515) walks the model through Step 0 → Step 3, stopping at the first match. No rule conflicts possible; the ladder IS the resolution order.
+**The Opus 4.7 move:** **first-match-wins decision ladders**. The `{request_evaluation_checklist}` block (line 515 in the source) walks the model through Step 0 → Step 3, stopping at the first match. No rule conflicts possible; the ladder IS the resolution order.
 
 *Evidence:* lines 515–537. Read the whole section — the explicit "stops at the first match" is the key phrase.
 

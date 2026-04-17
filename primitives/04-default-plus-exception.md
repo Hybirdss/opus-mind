@@ -14,7 +14,7 @@ A default-plus-exception block has three parts:
 
 ## Evidence
 
-The formatting policy is the clearest example. Lines 57–68 in `source/opus-4.7.txt`:
+The formatting policy is the clearest example. Lines 57–68 in the source:
 
 > Default: **no bullets, no headers, no lists, no bold emphasis**, prose in paragraphs.
 > Exceptions: (a) the person explicitly asks for a list, (b) the response is multifaceted enough that bullets are essential.

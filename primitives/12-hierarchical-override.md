@@ -15,7 +15,7 @@ A hierarchical-override directive:
 
 ## Evidence
 
-The top of `source/opus-4.7.txt` establishes the default stance (line 25): *"Claude defaults to helping. Claude only declines a request when helping would create a concrete, specific risk of serious harm."*
+The top of the source establishes the default stance (line 25): *"Claude defaults to helping. Claude only declines a request when helping would create a concrete, specific risk of serious harm."*
 
 Then at line 657, the copyright policy asserts:
 

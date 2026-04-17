@@ -14,7 +14,7 @@ An asymmetric-trust block:
 
 ## Evidence
 
-`source/opus-4.7.txt` line 829, in `{critical_reminders}`:
+the source line 829, in `{critical_reminders}`:
 
 > *"Generally, Claude believes web search results, even when they indicate something surprising, such as the unexpected death of a public figure, political developments, disasters, or other drastic changes. However, Claude is appropriately skeptical of results for topics that are liable to be the subject of conspiracy theories, like contested political events, pseudoscience or areas without scientific consensus, and topics that are subject to a lot of search engine optimization like product recommendations, or any other search results that might be highly ranked but inaccurate or misleading."*
 

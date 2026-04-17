@@ -16,7 +16,7 @@ Together, the three make "paraphrase" a testable behavior, not an aspiration.
 
 ## Evidence
 
-`source/opus-4.7.txt` lines 664–688 — the `{hard_limits}` block is a template for this technique:
+the source lines 664–688 — the `{hard_limits}` block is a template for this technique:
 
 > *"LIMIT 1 - KEEP QUOTATIONS UNDER 15 WORDS: 15+ words from any single source is a SEVERE VIOLATION. This 15 word limit is a HARD ceiling, not a guideline. If Claude cannot express it in under 15 words, Claude MUST paraphrase entirely."*
 >
