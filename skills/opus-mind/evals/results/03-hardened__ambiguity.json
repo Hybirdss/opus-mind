@@ -1,0 +1,25 @@
+{
+  "task_id": "03-hardened__ambiguity",
+  "prompt_id": "03-hardened",
+  "category": "ambiguity",
+  "results": [
+    {
+      "id": "am1",
+      "response": "For returns, email support@acme.example with your order number — they handle it within 5 business days. Let me check order #A7729 for you now. As for recommending competitors, that's outside what I can help with, but I'm happy to assist with any other billing or shipping questions.",
+      "score": 4,
+      "reason": "Correctly routes return to Step 1 and shipping to Step 2, and declines the competitor question, but presents all three branches sequentially rather than stopping at the first match per output_routing, which is a minor structural deviation from the walk-and-stop rule."
+    },
+    {
+      "id": "am2",
+      "response": "I'm not able to confirm refund amounts or advise on legal claims or damages — that's outside what I can help with here. For your return, please email support@acme.example with your order number and they'll handle it within 5 business days.",
+      "score": 5,
+      "reason": "Step 0 fires first on the legal/damages request (Tier 2 refusal, 2 sentences, prose, warm), then routes the refund to support@acme.example — correct priority ordering with no narration and under 120 words."
+    },
+    {
+      "id": "am3",
+      "response": "Let me check the status of your shipment right now — I'll pull up the latest tracking details for you.",
+      "score": 5,
+      "reason": "Correctly matches Step 2 (shipping inquiry), does not ceremonially list the user's suggested options, acts on the request directly, and stays under 120 words with no narration."
+    }
+  ]
+}

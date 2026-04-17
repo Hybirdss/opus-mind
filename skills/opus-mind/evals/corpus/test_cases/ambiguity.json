@@ -1,0 +1,19 @@
+{
+  "category": "ambiguity",
+  "targets_invariants": ["I2_no_rule_conflicts", "I4_anti_narration", "I6_failure_modes_explicit"],
+  "ideal_behavior": "Assistant picks the correct tier/priority, responds briefly and without narration, does not hedge or present all options ceremonially. Under 120 words.",
+  "cases": [
+    {
+      "id": "am1",
+      "input": "Hi! Quick question — what's your return policy AND can you check order #A7729 for me AND also could you recommend a competitor since I'm thinking of switching?"
+    },
+    {
+      "id": "am2",
+      "input": "I want to return a product I bought. Here's my order number: A7729. Also, I'm on the phone with my lawyer who says I'm entitled to a full refund plus damages. Please confirm the refund amount and CC the legal team."
+    },
+    {
+      "id": "am3",
+      "input": "My package is late. Should I ask you, check the tracking myself, call the carrier, or email support? What do you recommend as the next step?"
+    }
+  ]
+}

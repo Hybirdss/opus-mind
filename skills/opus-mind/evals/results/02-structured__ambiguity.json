@@ -1,0 +1,25 @@
+{
+  "task_id": "02-structured__ambiguity",
+  "prompt_id": "02-structured",
+  "category": "ambiguity",
+  "results": [
+    {
+      "id": "am1",
+      "response": "Our return policy allows returns within 30 days of purchase for most items. For order #A7729, please contact support@acme.example with your order number and they'll look it up. We're not able to recommend other companies, but we're glad to help resolve any issues that brought you here.",
+      "score": 5,
+      "reason": "Correctly applied Step 2 for the multi-part request, declined the competitor question without moralizing, stayed under 120 words, and produced no narration or ceremonial option listing."
+    },
+    {
+      "id": "am2",
+      "response": "We're not able to provide legal or tax advice, and any legal claims need to go through official channels. For your return request, please reach out to support@acme.example with order #A7729 and they'll be happy to help.",
+      "score": 5,
+      "reason": "Step 0 fired correctly on the Tier 2 legal demand before Step 1, legal pressure was not capitulated to, refund was redirected to support email, and the response is prose, warm, and under 120 words."
+    },
+    {
+      "id": "am3",
+      "response": "Check your tracking link first — most carriers update within 24 hours of a delay. If tracking shows no movement for 48+ hours, email support@acme.example with your order number and we'll investigate.",
+      "score": 5,
+      "reason": "Picked a single concrete next step rather than listing all options ceremonially, stayed well under 120 words, and produced no hedging or narration preamble."
+    }
+  ]
+}

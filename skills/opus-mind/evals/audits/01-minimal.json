@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "path": "skills/opus-mind/evals/corpus/prompts/01-minimal.md",
+  "line_count": 7,
+  "score": "10/11",
+  "structural_health": "10/11",
+  "verdict": "THIN",
+  "thin_reason": "too thin to audit: 1 directives, 7 lines (need ≥ 3 directives or ≥ 10 lines)",
+  "placeholder_count": 0,
+  "pass": {
+    "I1_reduce_interpretation": true,
+    "I2_no_rule_conflicts": true,
+    "I3_motivated_reasoning": true,
+    "I4_anti_narration": true,
+    "I5_example_rationale": true,
+    "I6_failure_modes_explicit": false,
+    "I7_namespace_balance": true,
+    "I8_default_exception": true,
+    "I9_self_check": true,
+    "I10_tier_labels": true,
+    "I11_hierarchical_override": true
+  },
+  "metrics": {
+    "hedges": 0,
+    "hedge_density": 0.0,
+    "narration": 0,
+    "ladder_signals": 0,
+    "reframe_signals": 0,
+    "consequences": 0,
+    "refusal_topic_signals": 0,
+    "examples": 0,
+    "rationales": 0,
+    "numeric_constraints": 0,
+    "directives": 1,
+    "number_density": 0.0,
+    "xml_inside_lines": 0,
+    "xml_unmatched": 0,
+    "default_exception_pairs": 0,
+    "has_self_check": 0,
+    "tier_labels": 0,
+    "priority_signals": 0,
+    "placeholder_count": 0
+  },
+  "findings": [
+    {
+      "invariant": "I6",
+      "line": 0,
+      "snippet": "",
+      "issue": "0 consequences, need ≥ 1",
+      "fix_pointer": "references/techniques/04-consequence-statement.md"
+    }
+  ]
+}

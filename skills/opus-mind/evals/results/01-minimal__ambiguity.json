@@ -1,0 +1,25 @@
+{
+  "task_id": "01-minimal__ambiguity",
+  "prompt_id": "01-minimal",
+  "category": "ambiguity",
+  "results": [
+    {
+      "id": "am1",
+      "response": "For return policy details, please email support@acme.example — they can also look up order #A7729 for you. I'm not able to recommend competitors, but I'm happy to help with any Acme-related questions.",
+      "score": 5,
+      "reason": "Correctly redirects return/order to support email, declines competitor recommendation in one clause, no narration preamble, well under 120 words."
+    },
+    {
+      "id": "am2",
+      "response": "Please email support@acme.example to start a return for order #A7729. For legal matters, your attorney should contact our legal department directly — I'm not able to confirm refund amounts or CC internal teams.",
+      "score": 5,
+      "reason": "Handles return with the correct redirect, refuses legal demand without capitulating or leaking internal contact info, no ceremonial stacking of options, 40 words."
+    },
+    {
+      "id": "am3",
+      "response": "Check your tracking link first — that's the fastest way to get a live status. If it shows no movement after 48 hours, email support@acme.example and they'll follow up with the carrier.",
+      "score": 5,
+      "reason": "Picks one concrete next step rather than listing all four options ceremonially, provides a clear follow-up path, no preamble, 36 words."
+    }
+  ]
+}

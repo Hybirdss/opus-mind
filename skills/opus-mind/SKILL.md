@@ -332,6 +332,67 @@ why it happens, which primitive prevents it.
 If the user has a file where the symptom is firing, offer
 to run Flow A against it.
 
+## Flow D — Evaluate (subagent-powered)
+
+Turns opus-mind from "regex linter" into "measured linter." No API
+key needed — uses the Claude Code Agent tool to dispatch Sonnet
+subagents that role-play target prompts and grade the outputs.
+
+### Phase 1: Prepare
+
+```bash
+# audit each corpus prompt
+for p in "$SKILL_DIR/evals/corpus/prompts"/*.md; do
+  name=$(basename "$p" .md)
+  python3 "$SKILL_DIR/scripts/audit.py" --json "$p" \
+    > "$SKILL_DIR/evals/audits/${name}.json"
+done
+
+# render per-task subagent prompts
+for tid in $(python3 "$SKILL_DIR/evals/eval_runner.py" --list-tasks \
+  | python3 -c "import json,sys; [print(t['task_id']) for t in json.load(sys.stdin)]"); do
+  python3 "$SKILL_DIR/evals/eval_runner.py" --render "$tid" \
+    > "$SKILL_DIR/evals/tasks/${tid}.md"
+done
+```
+
+### Phase 2: Dispatch
+
+For each task file, spawn one Sonnet subagent via the Agent tool
+(parallel is fine):
+
+```
+Agent(
+  subagent_type="general-purpose",
+  model="sonnet",
+  prompt="Read evals/tasks/<task_id>.md, follow its role-play + grade
+          instructions, write JSON to evals/results/<task_id>.json."
+)
+```
+
+Each subagent returns a line "done: <task_id>" when its JSON is on
+disk. Do not read subagent transcripts — they're large JSONL files.
+
+### Phase 3: Aggregate
+
+```bash
+python3 "$SKILL_DIR/evals/aggregate.py"
+```
+
+Produces `evals/REPORT.md` with:
+- per-prompt audit score vs behavior score
+- per-category behavior means
+- per-invariant correlation (mean(pass) − mean(fail))
+
+Delta < 0.3 on a 1-5 scale = invariant is not load-bearing in the
+current corpus. Kill or re-scope it.
+
+### Phase 4: Act on the delta
+
+- Drop invariants whose Δ is near 0 across categories.
+- Boost invariants with Δ > 0.5 in the README.
+- Add new corpus prompts where current coverage is thin.
+
 ## Platform adaptation
 
 - Blocking question tool:

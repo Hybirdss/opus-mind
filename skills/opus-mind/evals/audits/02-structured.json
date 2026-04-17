@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "path": "skills/opus-mind/evals/corpus/prompts/02-structured.md",
+  "line_count": 38,
+  "score": "9/11",
+  "structural_health": "9/11",
+  "verdict": "BORDERLINE",
+  "thin_reason": null,
+  "placeholder_count": 0,
+  "pass": {
+    "I1_reduce_interpretation": true,
+    "I2_no_rule_conflicts": true,
+    "I3_motivated_reasoning": true,
+    "I4_anti_narration": true,
+    "I5_example_rationale": true,
+    "I6_failure_modes_explicit": true,
+    "I7_namespace_balance": true,
+    "I8_default_exception": false,
+    "I9_self_check": true,
+    "I10_tier_labels": false,
+    "I11_hierarchical_override": true
+  },
+  "metrics": {
+    "hedges": 0,
+    "hedge_density": 0.0,
+    "narration": 0,
+    "ladder_signals": 3,
+    "reframe_signals": 3,
+    "consequences": 5,
+    "refusal_topic_signals": 7,
+    "examples": 0,
+    "rationales": 0,
+    "numeric_constraints": 5,
+    "directives": 6,
+    "number_density": 0.833,
+    "xml_inside_lines": 21,
+    "xml_unmatched": 0,
+    "default_exception_pairs": 0,
+    "has_self_check": 1,
+    "tier_labels": 0,
+    "priority_signals": 10,
+    "placeholder_count": 0
+  },
+  "findings": [
+    {
+      "invariant": "I8",
+      "line": 0,
+      "snippet": "",
+      "issue": "6 directives, no default+exception pair",
+      "fix_pointer": "references/primitives/04-default-plus-exception.md"
+    },
+    {
+      "invariant": "I10",
+      "line": 0,
+      "snippet": "",
+      "issue": "high-stakes content without ALLCAPS tier labels (e.g. SEVERE VIOLATION, HARD LIMIT, NON-NEGOTIABLE)",
+      "fix_pointer": "references/patterns/hard-tier-labels.md"
+    }
+  ]
+}
