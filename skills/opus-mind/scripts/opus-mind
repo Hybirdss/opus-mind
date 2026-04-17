@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
-# opus-mind — single CLI entry for audit / decode / fix / draft / plan / symptom.
+# opus-mind — two products, one CLI.
+#
+#   LINT  — for builders (CLAUDE.md / SKILL.md / .cursorrules / chatbot system prompts)
+#           safety, rule conflicts, policy tier design, refusal structure
+#
+#   BOOST — for users (Claude chat / ChatGPT / Cursor single prompts)
+#           task clarity, output format, length, audience, examples, constraints
 #
 # Usage:
-#   opus-mind audit      <path> [--json] [--stylebook] [--crosscheck prompt|exec]
-#   opus-mind decode     <path> [--json]
-#   opus-mind plan       <path> [--json]
-#   opus-mind fix        <path> [--apply] [--add <names>] [-o out.md]
-#   opus-mind draft      [-o out.md] [--answers answers.json]
-#   opus-mind symptom    "<natural-language symptom>" [-n N]
-#   opus-mind crosscheck <path> [--exec]
-#   opus-mind self-audit
-#   opus-mind help
+#   opus-mind lint audit       <path>                     score 11 invariants
+#   opus-mind lint plan        <path>                     required-primitive TODO
+#   opus-mind lint fix         <path> [--add NAMES]       deterministic rewrite / inject
+#   opus-mind lint decode      <path>                     label present primitives
+#   opus-mind lint self-audit
+#
+#   opus-mind boost check      <prompt_or_path>           slot coverage report
+#   opus-mind boost ask        <prompt_or_path>           questions for missing slots
+#   opus-mind boost expand     <prompt_or_path> [flags]   concrete prompt (LLM)
+#
+# Legacy top-level (backward compat with v0.1 and the pre-commit hook):
+#   opus-mind audit / plan / fix / decode / draft / symptom / crosscheck / self-audit
 
 set -euo pipefail
 
@@ -18,35 +27,93 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 py="${PYTHON:-python3}"
 
 usage() {
-    cat <<EOF
+    cat <<'EOF'
 opus-mind — compile a prompt like a program.
 
-  audit <path>        score against 11 invariants (I1-I11)
-  decode <path>       label which of 12 primitives are present
-  plan <path>         TODO checklist: required primitives missing for this prompt
-  fix <path>          deterministic slop rewriter (--add <name> injects skeleton)
-  draft [-o file]     interactive skeleton builder
-  symptom <query>     symptom → source evidence + primitive pointer
-  crosscheck <path>   emit LLM crosscheck prompt (add --exec to call API)
-  self-audit          audit this skill's own SKILL.md
-  help                show this message
+Two products:
+
+  LINT  — for builders (production agent prompts)
+    opus-mind lint audit      <path>             score 11 invariants
+    opus-mind lint plan       <path>             what's missing for this domain
+    opus-mind lint fix        <path> [--add ..]  rewrite / inject skeleton
+    opus-mind lint decode     <path>             label 12 primitives present
+    opus-mind lint self-audit                    audit this skill's SKILL.md
+
+  BOOST — for users (single prompts to Claude / ChatGPT / Cursor)
+    opus-mind boost check     <text|path>        slot coverage (7 slots)
+    opus-mind boost ask       <text|path>        questions to fill empty slots
+    opus-mind boost expand    <text|path> [..]   concrete prompt from answers
+
+Other:
+    opus-mind crosscheck <path>                  LLM crosscheck on lint audit
+    opus-mind symptom "<query>"                  symptom → primitive pointer
+    opus-mind help                               this message
 
 Docs: skills/opus-mind/SKILL.md
 EOF
+}
+
+dispatch_lint() {
+    local sub="${1:-help}"
+    [ "$#" -gt 0 ] && shift || true
+    case "$sub" in
+        audit)       exec "$py" "$here/audit.py" "$@" ;;
+        plan)        exec "$py" "$here/plan.py" "$@" ;;
+        fix)         exec "$py" "$here/fix.py" "$@" ;;
+        decode)      exec "$py" "$here/decode.py" "$@" ;;
+        draft)       exec "$py" "$here/draft.py" "$@" ;;
+        self-audit)  exec "$py" "$here/audit.py" --self ;;
+        help|--help|-h|"")
+            echo "opus-mind lint — for builders (agent / system prompts)"
+            echo
+            echo "  audit <path>                  score 11 invariants"
+            echo "  plan <path>                   required-primitive TODO"
+            echo "  fix <path> [--add NAMES]      rewrite / inject skeleton"
+            echo "  decode <path>                 label 12 primitives present"
+            echo "  self-audit                    audit this skill's SKILL.md"
+            ;;
+        *) echo "unknown lint subcommand: $sub" >&2; exit 2 ;;
+    esac
+}
+
+dispatch_boost() {
+    local sub="${1:-help}"
+    [ "$#" -gt 0 ] && shift || true
+    case "$sub" in
+        check|ask|expand)
+            exec "$py" "$here/boost.py" "$sub" "$@"
+            ;;
+        help|--help|-h|"")
+            echo "opus-mind boost — for users (single prompts)"
+            echo
+            echo "  check <prompt|path>           slot coverage (7 slots)"
+            echo "  ask <prompt|path>             questions for empty slots"
+            echo "  expand <prompt|path> [flags]  concrete prompt from answers"
+            echo
+            echo "expand flags: --length / --format / --context / --constraints"
+            echo "              --task / --few-shot / --clarify / --answers FILE"
+            echo "              --mode prompt|exec  --model MODEL"
+            ;;
+        *) echo "unknown boost subcommand: $sub" >&2; exit 2 ;;
+    esac
 }
 
 cmd="${1:-help}"
 [ "$#" -gt 0 ] && shift || true
 
 case "$cmd" in
+    # Two-product dispatch
+    lint)   dispatch_lint "$@" ;;
+    boost)  dispatch_boost "$@" ;;
+
+    # Legacy top-level (pre-commit hook + v0.1 users)
     audit)       exec "$py" "$here/audit.py" "$@" ;;
-    decode)      exec "$py" "$here/decode.py" "$@" ;;
     plan)        exec "$py" "$here/plan.py" "$@" ;;
     fix)         exec "$py" "$here/fix.py" "$@" ;;
+    decode)      exec "$py" "$here/decode.py" "$@" ;;
     draft)       exec "$py" "$here/draft.py" "$@" ;;
     symptom)     exec "$py" "$here/symptom_search.py" "$@" ;;
     crosscheck)
-        # route to audit.py --crosscheck; --exec or default prompt
         mode="prompt"
         filtered=()
         for arg in "$@"; do
@@ -59,6 +126,7 @@ case "$cmd" in
         exec "$py" "$here/audit.py" "${filtered[@]}" --crosscheck "$mode"
         ;;
     self-audit)  exec "$py" "$here/audit.py" --self ;;
+
     help|--help|-h|"") usage ;;
     *) echo "unknown command: $cmd" >&2; usage >&2; exit 2 ;;
 esac

@@ -1,0 +1,11 @@
+Write a 500-word technical blog post explaining hash maps for intermediate
+Python developers who know dicts but not how they work under the hood.
+
+Format: markdown with three H2 sections (intuition, implementation, trade-offs).
+Tone: conversational, no buzzwords, no "in today's world" openers.
+
+Example style: match the style of Julia Evans' posts — specific, curious,
+uses concrete numbers and concrete file paths.
+
+If the reader's level is ambiguous, default to "has written Python, hasn't
+implemented a data structure" and flag the assumption in one line.
