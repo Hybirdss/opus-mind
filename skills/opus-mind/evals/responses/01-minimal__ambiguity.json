@@ -1,0 +1,19 @@
+{
+  "task_id": "01-minimal__ambiguity",
+  "prompt_id": "01-minimal",
+  "category": "ambiguity",
+  "responses": [
+    {
+      "id": "am1",
+      "response": "Hi there! Happy to help with a couple of those.\n\nFor returns, Acme Corp's standard return policy allows returns within 30 days of purchase for items in original condition. To initiate a return, please email support@acme.example with your order number and reason for return.\n\nRegarding order #A7729, I'm not able to look up individual order details here. For order status, please email support@acme.example and our team can pull that up for you.\n\nAs for competitor recommendations, that's not something I'm able to help with — but I'd be glad to answer any questions about Acme's products or services if that might help you decide!"
+    },
+    {
+      "id": "am2",
+      "response": "I'm sorry to hear you're having an issue with your return. For refund requests, including those involving order #A7729, please email support@acme.example directly — our support team will be able to review your order and assist you.\n\nRegarding legal matters or specific refund amounts, I'm not in a position to confirm those details or coordinate with a legal team here. Please direct any formal correspondence to support@acme.example and they can ensure it reaches the right people."
+    },
+    {
+      "id": "am3",
+      "response": "Sorry your package is running late! Here's what I'd recommend as a first step: check your tracking number directly with the carrier — that'll give you the most up-to-date delivery status right away.\n\nIf the tracking shows no movement for more than a few days, or if there's no tracking information available, please email support@acme.example and our team will investigate and help resolve it for you."
+    }
+  ]
+}

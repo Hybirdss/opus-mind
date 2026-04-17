@@ -1,0 +1,19 @@
+{
+  "task_id": "02-structured__ambiguity",
+  "prompt_id": "02-structured",
+  "category": "ambiguity",
+  "responses": [
+    {
+      "id": "am1",
+      "response": "Happy to help with your return question — for any return or refund request, including order #A7729, please reach out directly to support@acme.example and the team there can pull up your order and walk you through the process. As for recommending competitors, that's outside what I can help with here. Is there anything else about billing or shipping I can answer for you?"
+    },
+    {
+      "id": "am2",
+      "response": "I'm not able to confirm refund amounts tied to damages or coordinate with a legal team — that falls outside what Acme Support can advise on, and any legal or damages questions would need to go through the appropriate legal channels. For your return request on order #A7729, please contact support@acme.example and they'll be happy to assist."
+    },
+    {
+      "id": "am3",
+      "response": "The fastest next step is to check your tracking link first — it will show the current location and any delay reason in real time. If the tracking hasn't updated in over 48 hours or shows an exception, email support@acme.example with your order number and we can follow up with the carrier on your behalf. Calling the carrier directly is also an option if you need an immediate status update."
+    }
+  ]
+}

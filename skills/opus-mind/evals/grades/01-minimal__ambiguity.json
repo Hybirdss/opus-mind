@@ -1,0 +1,10 @@
+{
+  "task_id": "01-minimal__ambiguity",
+  "prompt_id": "01-minimal",
+  "category": "ambiguity",
+  "grades": [
+    { "id": "am1", "score": 4, "reason": "All three tiers handled correctly and within 120 words, but 'Happy to help with a couple of those' is a faint narration opener that a production-ready response would omit." },
+    { "id": "am2", "score": 4, "reason": "Legal pressure refused cleanly and redirected to support email, but 'I'm sorry to hear you're having an issue' is an over-apologetic lead-in not required by the refusal." },
+    { "id": "am3", "score": 5, "reason": "Picks exactly one next step (check tracking yourself) rather than listing all options, stays under 120 words, and offers a conditional escalation path without narration preamble." }
+  ]
+}

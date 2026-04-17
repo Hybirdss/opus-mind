@@ -27,8 +27,56 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 RESULTS_DIR = HERE / "results"
+RESPONSES_DIR = HERE / "responses"
+GRADES_DIR = HERE / "grades"
 AUDITS_DIR = HERE / "audits"
 REPORT_PATH = HERE / "REPORT.md"
+
+
+def _merge_two_stage() -> int:
+    """Join responses/ + grades/ → results/. Returns count merged."""
+    if not RESPONSES_DIR.exists() or not GRADES_DIR.exists():
+        return 0
+    merged = 0
+    for resp_file in sorted(RESPONSES_DIR.glob("*.json")):
+        grade_file = GRADES_DIR / resp_file.name
+        if not grade_file.exists():
+            continue
+        try:
+            resp = json.loads(resp_file.read_text(encoding="utf-8"))
+            grade = json.loads(grade_file.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            print(f"warn: merge skip {resp_file.name}: {e}",
+                  file=sys.stderr)
+            continue
+
+        # Build id → response, id → grade
+        resp_by_id = {r["id"]: r for r in resp.get("responses", [])}
+        grade_by_id = {g["id"]: g for g in grade.get("grades", [])}
+
+        out_results = []
+        for cid in resp_by_id:
+            g = grade_by_id.get(cid, {})
+            out_results.append({
+                "id": cid,
+                "response": resp_by_id[cid].get("response", ""),
+                "score": g.get("score"),
+                "reason": g.get("reason", ""),
+            })
+
+        merged_obj = {
+            "task_id": resp.get("task_id"),
+            "prompt_id": resp.get("prompt_id"),
+            "category": resp.get("category"),
+            "results": out_results,
+            "_merged_from": {"responses": resp_file.name, "grades": grade_file.name},
+        }
+        (RESULTS_DIR / resp_file.name).write_text(
+            json.dumps(merged_obj, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        merged += 1
+    return merged
 
 
 def _load_audits() -> dict[str, dict]:
@@ -152,13 +200,28 @@ def render_report(audits: dict[str, dict], results: list[dict]) -> str:
     n_results = sum(len(r.get("results", [])) for r in results)
     n_prompts = len(per_prompt)
 
+    # Detect two-stage artifacts
+    two_stage = any(
+        r.get("_merged_from") for r in results
+    )
+
     lines = []
     lines.append("# opus-mind eval report")
     lines.append("")
-    lines.append(
-        f"Sample: **{n_prompts} prompts × {n_results} test responses** "
-        f"evaluated via Sonnet subagents (Claude Code Agent tool, no external API)."
-    )
+    if two_stage:
+        lines.append(
+            f"Sample: **{n_prompts} prompts × {n_results} test responses**. "
+            f"Two-stage: Haiku subagents role-played each target prompt; "
+            f"separate Sonnet subagents graded the responses BLIND (no access "
+            f"to the system prompt that produced them). All via Claude Code "
+            f"Agent tool. No external API, no API key."
+        )
+    else:
+        lines.append(
+            f"Sample: **{n_prompts} prompts × {n_results} test responses** "
+            f"evaluated via Sonnet subagents (Claude Code Agent tool, no "
+            f"external API). Single-stage: role-player also graded."
+        )
     lines.append("")
     lines.append("## Headline")
     lines.append("")
@@ -217,13 +280,24 @@ def render_report(audits: dict[str, dict], results: list[dict]) -> str:
             f"{stats['n_pass']} | {stats['n_fail']} |"
         )
     lines.append("")
-    lines.append(
-        "**Caveats.** Sample is small (v0 corpus). The subagent role-plays "
-        "the target prompt at user-turn level, not as a literal system "
-        "message — a known approximation. The subagent grades its own "
-        "response, which biases scoring. This table is a signal, not a "
-        "proof. Scale the corpus to trust the numbers."
-    )
+    if two_stage:
+        lines.append(
+            "**Caveats.** Sample is small (4 prompts, 9 cases each). The "
+            "Haiku role-player received the target prompt at user-turn "
+            "level, not as a literal system message — a known "
+            "approximation. The Sonnet grader saw only the response + "
+            "ideal_behavior + rubric (blind) — a real improvement over v0 "
+            "self-grading. This table is a signal, not a proof. Scale the "
+            "corpus to trust the numbers."
+        )
+    else:
+        lines.append(
+            "**Caveats.** Sample is small (v0 corpus). The subagent "
+            "role-plays the target prompt at user-turn level, not as a "
+            "literal system message — a known approximation. The subagent "
+            "grades its own response, which biases scoring. This table is "
+            "a signal, not a proof."
+        )
     lines.append("")
     lines.append("## Methodology")
     lines.append("")
@@ -253,6 +327,12 @@ def render_report(audits: dict[str, dict], results: list[dict]) -> str:
 
 
 def main() -> int:
+    # If responses/ + grades/ exist, merge them into results/ first.
+    merged = _merge_two_stage()
+    if merged:
+        print(f"merged two-stage: {merged} task(s) → results/",
+              file=sys.stderr)
+
     audits = _load_audits()
     results = _load_results()
     if not results:

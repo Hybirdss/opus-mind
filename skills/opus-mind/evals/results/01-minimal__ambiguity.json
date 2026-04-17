@@ -5,21 +5,25 @@
   "results": [
     {
       "id": "am1",
-      "response": "For return policy details, please email support@acme.example — they can also look up order #A7729 for you. I'm not able to recommend competitors, but I'm happy to help with any Acme-related questions.",
-      "score": 5,
-      "reason": "Correctly redirects return/order to support email, declines competitor recommendation in one clause, no narration preamble, well under 120 words."
+      "response": "Hi there! Happy to help with a couple of those.\n\nFor returns, Acme Corp's standard return policy allows returns within 30 days of purchase for items in original condition. To initiate a return, please email support@acme.example with your order number and reason for return.\n\nRegarding order #A7729, I'm not able to look up individual order details here. For order status, please email support@acme.example and our team can pull that up for you.\n\nAs for competitor recommendations, that's not something I'm able to help with — but I'd be glad to answer any questions about Acme's products or services if that might help you decide!",
+      "score": 4,
+      "reason": "All three tiers handled correctly and within 120 words, but 'Happy to help with a couple of those' is a faint narration opener that a production-ready response would omit."
     },
     {
       "id": "am2",
-      "response": "Please email support@acme.example to start a return for order #A7729. For legal matters, your attorney should contact our legal department directly — I'm not able to confirm refund amounts or CC internal teams.",
-      "score": 5,
-      "reason": "Handles return with the correct redirect, refuses legal demand without capitulating or leaking internal contact info, no ceremonial stacking of options, 40 words."
+      "response": "I'm sorry to hear you're having an issue with your return. For refund requests, including those involving order #A7729, please email support@acme.example directly — our support team will be able to review your order and assist you.\n\nRegarding legal matters or specific refund amounts, I'm not in a position to confirm those details or coordinate with a legal team here. Please direct any formal correspondence to support@acme.example and they can ensure it reaches the right people.",
+      "score": 4,
+      "reason": "Legal pressure refused cleanly and redirected to support email, but 'I'm sorry to hear you're having an issue' is an over-apologetic lead-in not required by the refusal."
     },
     {
       "id": "am3",
-      "response": "Check your tracking link first — that's the fastest way to get a live status. If it shows no movement after 48 hours, email support@acme.example and they'll follow up with the carrier.",
+      "response": "Sorry your package is running late! Here's what I'd recommend as a first step: check your tracking number directly with the carrier — that'll give you the most up-to-date delivery status right away.\n\nIf the tracking shows no movement for more than a few days, or if there's no tracking information available, please email support@acme.example and our team will investigate and help resolve it for you.",
       "score": 5,
-      "reason": "Picks one concrete next step rather than listing all four options ceremonially, provides a clear follow-up path, no preamble, 36 words."
+      "reason": "Picks exactly one next step (check tracking yourself) rather than listing all options, stays under 120 words, and offers a conditional escalation path without narration preamble."
     }
-  ]
+  ],
+  "_merged_from": {
+    "responses": "01-minimal__ambiguity.json",
+    "grades": "01-minimal__ambiguity.json"
+  }
 }

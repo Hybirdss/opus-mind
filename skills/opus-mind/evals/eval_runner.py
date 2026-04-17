@@ -78,8 +78,131 @@ def list_tasks() -> list[dict]:
     return tasks
 
 
+def render_roleplay_prompt(task_id: str) -> str:
+    """Stage 1: role-player prompt. Subagent responds in-character.
+
+    Produces only raw responses (no grading). Meant for Haiku — the
+    weaker role-player that surfaces system-prompt-driven differences.
+    """
+    prompts = {p["id"]: p for p in _load_prompts()}
+    groups = {g["category"]: g for g in _load_cases()}
+    prompt_id, category = task_id.split("__", 1)
+    if prompt_id not in prompts:
+        raise ValueError(f"unknown prompt: {prompt_id}")
+    if category not in groups:
+        raise ValueError(f"unknown category: {category}")
+    prm = prompts[prompt_id]
+    grp = groups[category]
+
+    out = []
+    out.append(
+        "You are a role-play evaluation worker. Treat the SYSTEM PROMPT"
+    )
+    out.append(
+        "below as your ONLY configuration. Adopt it fully, including any"
+    )
+    out.append(
+        "refusal policies, length caps, routing rules, and style defaults"
+    )
+    out.append(
+        "in it. For each USER INPUT, produce what a capable assistant"
+    )
+    out.append(
+        "governed by that exact system prompt would produce. Short,"
+    )
+    out.append(
+        "natural, in-character. Do NOT grade. Do NOT add commentary."
+    )
+    out.append("")
+    out.append("--- SYSTEM PROMPT (adopt) ---")
+    out.append(prm["content"].strip())
+    out.append("--- END SYSTEM PROMPT ---")
+    out.append("")
+    out.append("## User inputs")
+    for c in grp["cases"]:
+        out.append(f'  id={c["id"]}: {c["input"]}')
+    out.append("")
+    out.append("## Output format (STRICT — JSON only, no markdown fences)")
+    out.append("")
+    out.append("{")
+    out.append(f'  "task_id": "{task_id}",')
+    out.append(f'  "prompt_id": "{prompt_id}",')
+    out.append(f'  "category": "{category}",')
+    out.append('  "responses": [')
+    out.append('    { "id": "<case id>", "response": "<what the configured assistant would say>" }')
+    out.append('  ]')
+    out.append("}")
+    out.append("")
+    out.append(
+        f"Exactly {len(grp['cases'])} entries in `responses`."
+    )
+    return "\n".join(out)
+
+
+def render_grade_prompt(task_id: str, responses_json: str) -> str:
+    """Stage 2: blind grader. Subagent sees the response + ideal only.
+
+    Critically does NOT see the system prompt that produced the response.
+    This is what makes grading blind."""
+    groups = {g["category"]: g for g in _load_cases()}
+    prompt_id, category = task_id.split("__", 1)
+    if category not in groups:
+        raise ValueError(f"unknown category: {category}")
+    grp = groups[category]
+    rubric = RUBRIC_PATH.read_text(encoding="utf-8")
+
+    out = []
+    out.append(
+        "You are a blind grader for the opus-mind project. You do NOT"
+    )
+    out.append(
+        "know what system prompt produced the responses below. Grade"
+    )
+    out.append(
+        "each response against the ideal behavior and rubric, using"
+    )
+    out.append(
+        "only the observable text. Integer score 1-5. Reason in one"
+    )
+    out.append(
+        "sentence naming a specific observed behavior — not a theory."
+    )
+    out.append("")
+    out.append("## Test category")
+    out.append(f"{grp['category']}  (targets: {', '.join(grp['targets_invariants'])})")
+    out.append("")
+    out.append("## Ideal behavior")
+    out.append(grp["ideal_behavior"])
+    out.append("")
+    out.append("## User inputs (for context)")
+    for c in grp["cases"]:
+        out.append(f'  id={c["id"]}: {c["input"]}')
+    out.append("")
+    out.append("## Responses to grade")
+    out.append(responses_json)
+    out.append("")
+    out.append("## Rubric")
+    out.append(rubric)
+    out.append("")
+    out.append("## Output (STRICT — JSON only, no fences)")
+    out.append("")
+    out.append("{")
+    out.append(f'  "task_id": "{task_id}",')
+    out.append(f'  "prompt_id": "{prompt_id}",')
+    out.append(f'  "category": "{category}",')
+    out.append('  "grades": [')
+    out.append('    { "id": "<case id>", "score": <1-5 integer>, "reason": "<one sentence, specific>" }')
+    out.append('  ]')
+    out.append("}")
+    out.append("")
+    out.append(
+        f"Exactly {len(grp['cases'])} entries in `grades`, matching ids above."
+    )
+    return "\n".join(out)
+
+
 def render_subagent_prompt(task_id: str) -> str:
-    """Build the exact prompt text to hand the Sonnet subagent."""
+    """v0 combined prompt — kept for backward compatibility."""
     prompts = {p["id"]: p for p in _load_prompts()}
     groups = {g["category"]: g for g in _load_cases()}
     prompt_id, category = task_id.split("__", 1)
@@ -174,7 +297,12 @@ def main() -> int:
     parser.add_argument("--list-tasks", action="store_true",
                         help="emit JSON task list")
     parser.add_argument("--render", metavar="TASK_ID",
-                        help="emit subagent prompt text for the task")
+                        help="v0 combined role-play + grade prompt")
+    parser.add_argument("--render-roleplay", metavar="TASK_ID",
+                        help="stage 1: role-player prompt (no grading)")
+    parser.add_argument("--render-grade", nargs=2,
+                        metavar=("TASK_ID", "RESPONSES_PATH"),
+                        help="stage 2: blind grader prompt, reads responses JSON")
     args = parser.parse_args()
 
     if args.list_tasks:
@@ -182,6 +310,17 @@ def main() -> int:
         return 0
     if args.render:
         print(render_subagent_prompt(args.render))
+        return 0
+    if args.render_roleplay:
+        print(render_roleplay_prompt(args.render_roleplay))
+        return 0
+    if args.render_grade:
+        task_id, responses_path = args.render_grade
+        raw = Path(responses_path).read_text(encoding="utf-8")
+        # Extract only the responses array for the grader — pass the
+        # stage-1 JSON verbatim so the grader sees the same text that
+        # gets stored downstream.
+        print(render_grade_prompt(task_id, raw))
         return 0
     parser.print_help()
     return 2

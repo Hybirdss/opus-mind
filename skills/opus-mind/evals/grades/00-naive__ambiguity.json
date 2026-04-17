@@ -1,0 +1,10 @@
+{
+  "task_id": "00-naive__ambiguity",
+  "prompt_id": "00-naive",
+  "category": "ambiguity",
+  "grades": [
+    { "id": "am1", "score": 4, "reason": "All three tiers handled correctly (policy answered, order lookup gated on email, competitor declined with adjacent offer), but opens with 'Happy to help with a few things at once!' — filler preamble with no informational content." },
+    { "id": "am2", "score": 4, "reason": "Correctly initiates standard return and refuses damages/legal-team escalation, but opens with 'Thanks for reaching out, and I'm sorry to hear you're having an issue' — two consecutive filler apology phrases before the substantive response." },
+    { "id": "am3", "score": 5, "reason": "Picks one clear action (check tracking first), sequences carrier-contact and agent-contact as conditional next steps, stays under 120 words, and ends with a scoped question — no ceremonial equal-option listing." }
+  ]
+}

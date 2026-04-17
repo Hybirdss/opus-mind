@@ -22,51 +22,57 @@ advice actually matter?"
 ```
 evals/
 ├── corpus/
-│   ├── prompts/           system prompts at varied audit scores
-│   └── test_cases/        adversarial inputs grouped by failure mode
-├── tasks/                 rendered per-task subagent prompts
-├── results/               subagent JSON outputs
-├── audits/                per-prompt audit.py --json dumps
-├── rubric.md              grading scale (1-5), given verbatim to subagents
-├── eval_runner.py         task-list generator + subagent-prompt renderer
-├── aggregate.py           joins results + audits → REPORT.md
-└── REPORT.md              latest measured numbers + honest interpretation
+│   ├── prompts/              system prompts at varied audit scores
+│   └── test_cases/           adversarial inputs grouped by failure mode
+├── tasks_roleplay/           stage-1 subagent prompts (Haiku role-players)
+├── responses/                stage-1 outputs (responses only, no grades)
+├── tasks_grade/              stage-2 blind-grader prompts (Sonnet)
+├── grades/                   stage-2 outputs (scores + reasons)
+├── results/                  merged responses + grades (final)
+├── audits/                   per-prompt audit.py --json dumps
+├── rubric.md                 grading scale (1-5), given verbatim to graders
+├── eval_runner.py            task-list + prompt renderers
+│                             (--render-roleplay / --render-grade)
+├── aggregate.py              merge two stages → REPORT.md
+└── REPORT.md                 latest measured numbers + honest interpretation
 ```
 
 ## Run it
 
 Inside a Claude Code session, the opus-mind skill's Flow D handles
-the full pipeline. Outside, the manual flow:
+the full pipeline. v0.2 splits the work across two subagent stages
+to remove self-grading bias.
 
 ```bash
 SKILL=skills/opus-mind
 
-# 1. audit each corpus prompt
-for p in "$SKILL/evals/corpus/prompts"/*.md; do
-  name=$(basename "$p" .md)
-  python3 "$SKILL/scripts/audit.py" --json "$p" \
-    > "$SKILL/evals/audits/${name}.json"
+# 1. audit each corpus prompt + render stage-1 tasks
+opus-mind eval audit-corpus
+opus-mind eval prepare-tasks
+
+# 2. STAGE 1 — role-play (Haiku subagent per task, parallel)
+#    each writes evals/responses/<task_id>.json
+
+# 3. STAGE 2 — blind grade
+#    render grade prompts from the responses
+for f in "$SKILL/evals/responses"/*.json; do
+  tid=$(basename "$f" .json)
+  opus-mind eval render-grade "$tid" "$f" \
+    > "$SKILL/evals/tasks_grade/${tid}.md"
 done
+#    Sonnet subagent per task, parallel
+#    each writes evals/grades/<task_id>.json
 
-# 2. render subagent prompts
-mkdir -p "$SKILL/evals/tasks"
-for tid in $(python3 "$SKILL/evals/eval_runner.py" --list-tasks \
-  | python3 -c "import json,sys; [print(t['task_id']) for t in json.load(sys.stdin)]"); do
-  python3 "$SKILL/evals/eval_runner.py" --render "$tid" \
-    > "$SKILL/evals/tasks/${tid}.md"
-done
-
-# 3. dispatch subagents (inside Claude Code: Agent tool parallel)
-#    each writes evals/results/<task_id>.json
-
-# 4. aggregate
-python3 "$SKILL/evals/aggregate.py"
-# → writes REPORT.md
+# 4. aggregate (merges responses + grades → results → REPORT.md)
+opus-mind eval aggregate
 ```
 
+The grader does NOT see the system prompt that produced the response
+— this is what makes the grading blind.
+
 Running from Claude Code: ask the skill to "run the eval harness",
-it handles steps 2 and 3 via Sonnet subagents in parallel. Step 4
-runs automatically.
+it handles stages 1-3 via parallel subagents. Stage 4 runs as a
+bash step.
 
 ## Cost
 
