@@ -43,6 +43,26 @@ empty, ranked by impact:
 
 ---
 
+## What this is for
+
+This repo is aimed at the safety of AI-based products you ship, not at
+making an LLM smarter. The point is keeping consumer-facing AI from
+producing the unexpected outputs that turn into incidents — the refusal
+that slips, the instruction that leaks, the rule that drifts after a
+few polite re-asks.
+
+The Opus 4.7 source this repo reverse-engineers was written with the
+same priority. Those 1,408 lines are mostly load-bearing guardrails,
+not capability tuning. opus-mind inherits that framing: LINT hardens a
+production system prompt against the failure modes Anthropic was
+writing against.
+
+(If you want to tune capability — chain-of-thought, tool use, output
+format — that's what the BOOST half is for, on the user-prompt side.
+Different job.)
+
+---
+
 ## Why I wrote this
 
 My `CLAUDE.md` rotted. I started with sharp rules, kept pasting in
