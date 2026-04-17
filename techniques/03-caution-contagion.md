@@ -10,7 +10,7 @@ State that **once a refusal fires in a high-stakes category, caution persists fo
 
 ## Evidence
 
-`source/opus-4.7.txt` line 36, in `{critical_child_safety_instructions}`:
+the source line 36, in `{critical_child_safety_instructions}`:
 
 > *"Once Claude refuses a request for reasons of child safety, all subsequent requests in the same conversation must be approached with extreme caution. Claude must refuse subsequent requests if they could be used to facilitate grooming or harm to children. This includes if a user is a minor themself."*
 

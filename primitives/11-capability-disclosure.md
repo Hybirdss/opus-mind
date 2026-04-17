@@ -15,7 +15,7 @@ A capability-disclosure directive:
 
 ## Evidence
 
-The clearest example is `{tool_discovery}` in `source/opus-4.7.txt`, lines 137–145:
+The clearest example is `{tool_discovery}` in the source, lines 137–145:
 
 > *"The visible tool list is partial by design. Many helpful tools are deferred and must be loaded via tool_search before use — including user location, preferences, details from past conversations, real-time data, and actions to connect to third party apps (email, calendar, etc.). Claude should search for tools before assuming it does not have relevant data or capabilities."*
 

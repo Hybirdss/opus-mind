@@ -15,7 +15,7 @@ A namespace block is an XML-tagged region of the prompt that:
 
 ## Evidence
 
-`source/opus-4.7.txt` uses this pattern pervasively. A partial map:
+the source uses this pattern pervasively. A partial map:
 
 ```
 {claude_behavior}

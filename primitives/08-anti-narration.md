@@ -17,7 +17,7 @@ The model still *does* the work — it just does it silently.
 
 ## Evidence
 
-Two clear directives in `source/opus-4.7.txt`:
+Two clear directives in the source:
 
 Line 536 (in request evaluation checklist):
 

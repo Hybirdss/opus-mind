@@ -20,8 +20,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-Note on source material: `source/opus-4.7.txt` is a verbatim mirror of the
-Claude Opus 4.7 system prompt as archived at elder-plinius/CL4R1T4S. Anthropic
-has not published this file. The MIT license above covers the analysis,
+Note on source material: this repository analyzes the Claude Opus 4.7 system
+prompt as archived at elder-plinius/CL4R1T4S. The verbatim prompt is NOT
+hosted in this repo; see `source/README.md` for the canonical URL. Anthropic
+has not published this prompt. The MIT license above covers the analysis,
 framework, and derivative content in this repository; it does not purport to
 grant rights to the underlying system prompt.

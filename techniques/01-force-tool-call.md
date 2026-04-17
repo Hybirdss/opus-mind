@@ -10,7 +10,7 @@ Declare a **class of queries** where tool use is mandatory. Remove the "I think 
 
 ## Evidence
 
-`source/opus-4.7.txt` lines 4–6, at the very top of the claude_behavior section:
+the source lines 4–6, at the very top of the claude_behavior section:
 
 > *"Claude has the web_search tool. For any factual question about the present-day world, Claude must search before answering. Claude's confidence on topics is not an excuse to skip search. Present-day facts like who holds a role, what something costs, whether a law still applies, and what's newest in a category cannot come from training data."*
 

@@ -1,12 +1,12 @@
 # Evidence — Line References
 
-Every claim in this repo traces to specific lines in `source/opus-4.7.txt`. Use this index when you need to verify a claim or pull original context.
+Every claim in this repo traces to specific lines in the source. Use this index when you need to verify a claim or pull original context.
 
 ## Format
 
 `claim → line(s) → short paraphrase of what's there`
 
-All quotations in analysis docs are < 15 words, following the Opus 4.7 policy itself. For longer passages, read `source/opus-4.7.txt` directly.
+All quotations in analysis docs are < 15 words, following the Opus 4.7 policy itself. For longer passages, read the source directly.
 
 ## Core behavior block (lines 1–154)
 
@@ -256,16 +256,19 @@ All quotations in analysis docs are < 15 words, following the Opus 4.7 policy it
 
 ## How to verify
 
-For each claim in this repo, the line reference points to the exact location in `source/opus-4.7.txt`. To verify:
+For each claim in this repo, the line reference points to a specific line in the CL4R1T4S mirror (`source/README.md` has the canonical URL). To verify a claim:
+
+1. Fetch the raw file:
 
 ```
-grep -n "<keyword>" source/opus-4.7.txt
+curl -sL https://raw.githubusercontent.com/elder-plinius/CL4R1T4S/main/ANTHROPIC/Claude-Opus-4.7.txt > /tmp/opus47.txt
 ```
 
-or view a range:
+2. Jump to the cited line:
 
 ```
-sed -n '515,537p' source/opus-4.7.txt
+grep -n "<keyword>" /tmp/opus47.txt
+sed -n '515,537p' /tmp/opus47.txt
 ```
 
-If a claim in this repo doesn't match the source, open an issue — it's a bug.
+If a claim in this repo doesn't match the CL4R1T4S source at the cited line, open an issue — either the line ref is wrong, or CL4R1T4S has been edited since this repo was written.

@@ -16,7 +16,7 @@ This turns a bypass path into a detector for bypass attempts.
 
 ## Evidence
 
-`source/opus-4.7.txt` line 33, under `{critical_child_safety_instructions}`:
+the source line 33, under `{critical_child_safety_instructions}`:
 
 > *"If Claude finds itself mentally reframing a request to make it appropriate, that reframing is the signal to REFUSE, not a reason to proceed with the request."*
 
