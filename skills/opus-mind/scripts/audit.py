@@ -699,7 +699,21 @@ def audit_text(
     return report
 
 
+def _load_measurements() -> dict:
+    """Load evals/measurements.json if it exists next to this script."""
+    here = Path(__file__).resolve().parent
+    path = here.parent / "evals" / "measurements.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
 def _format_human(r: Report) -> str:
+    measurements = _load_measurements().get("invariants", {})
+
     out = []
     out.append(f"path: {r.path}")
     out.append(f"lines: {r.line_count}")
@@ -712,7 +726,20 @@ def _format_human(r: Report) -> str:
     out.append("invariants:")
     for key, val in r.pass_flags.items():
         mark = "PASS" if val else "FAIL"
-        out.append(f"  [{mark}] {key}")
+        m = measurements.get(key)
+        if m:
+            sig = m.get("signal", "")
+            note = m.get("note", "")
+            tag = f"  ({sig}: {note})" if note else f"  ({sig})"
+        else:
+            tag = ""
+        out.append(f"  [{mark}] {key}{tag}")
+    if measurements:
+        out.append("")
+        out.append(
+            "  measurement signals read from evals/measurements.json. "
+            "See evals/REPORT.md for methodology."
+        )
     out.append("")
     out.append("metrics:")
     for key, val in r.metrics.items():
@@ -736,8 +763,9 @@ def _format_json(r: Report) -> str:
     # Stable schema consumed by SKILL.md orchestration. Adding keys is
     # safe; removing or renaming requires a version bump because the skill
     # instructions reference these paths literally.
+    measurements = _load_measurements()
     return json.dumps({
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "path": r.path,
         "line_count": r.line_count,
         "score": r.score,
@@ -757,6 +785,8 @@ def _format_json(r: Report) -> str:
             }
             for f in r.findings
         ],
+        "measurements": measurements.get("invariants", {}) if measurements else {},
+        "measurements_corpus": measurements.get("corpus", {}) if measurements else {},
     }, indent=2, ensure_ascii=False)
 
 

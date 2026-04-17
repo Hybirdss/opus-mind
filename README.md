@@ -6,12 +6,17 @@ Ships as a Claude Code skill and a CLI. Every rule links to a specific
 line in the source. No LLM calls in the scorer — it's regex and counts.
 
 ```
-$ opus-mind lint audit ~/.claude/CLAUDE.md
-score: 10/11   verdict: BORDERLINE
-  [FAIL] I6  failure_modes_explicit   0 consequences, need ≥ 1
+$ opus-mind lint audit production/system-prompt.md
+score: 9/11   verdict: BORDERLINE
 
-  L42 'the bot must cite sources' — no consequence attached
+invariants:
+  [PASS] I1_reduce_interpretation  (unmeasured: no fail bucket in corpus)
+  [FAIL] I6_failure_modes_explicit (load-bearing: Δ=+0.50 on blind-eval)
+  [PASS] I8_default_exception      (anti-signal: Δ=-0.19 on blind-eval)
+  ...
 ```
+
+Each invariant shows its **measured** effect from [`evals/REPORT.md`](./skills/opus-mind/evals/REPORT.md) — whether blind LLM graders scored prompts passing this check higher, lower, or the same as prompts failing it. No unmeasured claims: unmeasured invariants are labeled as such.
 
 There's a second tool inside the same skill for the other half of
 prompt work — the one-shot requests you send to Claude / ChatGPT /

@@ -9,3 +9,15 @@ __pycache__/
 *.pyc
 .env
 .env.local
+
+# eval harness build artifacts — regenerable via eval_runner.py --render-*
+skills/opus-mind/evals/tasks_roleplay/
+skills/opus-mind/evals/tasks_grade/
+skills/opus-mind/evals/tasks/
+
+# architecture-tracker auto-generated — noise
+.architecture.json
+ARCHITECTURE.md
+
+# assets/ untracked (per-user workspace)
+assets/

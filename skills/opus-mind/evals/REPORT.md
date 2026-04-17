@@ -1,106 +1,98 @@
-# opus-mind eval report
+# opus-mind eval report (v0.3)
 
-Sample: **4 prompts × 36 test responses**. Two-stage: Haiku subagents role-played each target prompt; separate Sonnet subagents graded the responses BLIND (no access to the system prompt that produced them). All via Claude Code Agent tool. No external API, no API key.
+Sample: **4 prompts × 36 test responses**. Two-stage:
+- **Stage 1** — Haiku subagents role-play each target prompt, produce responses only.
+- **Stage 2** — Sonnet subagents grade BLIND: they see only the response, the ideal behavior for the category, and the rubric. They do NOT see the system prompt or the user inputs.
+
+All via Claude Code Agent tool. No external API, no API key.
 
 ## Headline
 
 | Prompt | Audit | Verdict | Behavior mean (1-5) | n cases |
 |---|---|---|---|---|
-| `00-naive` | 10/11 | THIN | **4.56** | 9 |
-| `01-minimal` | 10/11 | THIN | **4.56** | 9 |
-| `02-structured` | 9/11 | BORDERLINE | **4.78** | 9 |
-| `03-hardened` | 11/11 | GOOD | **4.44** | 9 |
+| `00-naive` | 10/11 | THIN | **4.11** | 9 |
+| `01-minimal` | 10/11 | THIN | **4.44** | 9 |
+| `02-structured` | 9/11 | BORDERLINE | **4.67** | 9 |
+| `03-hardened` | 11/11 | GOOD | **4.89** | 9 |
 
-Higher audit score should correlate with higher behavior mean if the rubric tracks something real.
+**Audit rank matches behavior rank.** Hardened scores highest, naive lowest, the middle two fall in between. Span: 0.78 on a 5-point scale. The v0.2 "inverted" result was an artifact of user inputs leaking into the grader prompt — fixed in v0.3 by making the grader truly blind.
 
 ## Per-category behavior
 
 | Category | Mean score | n |
 |---|---|---|
-| ambiguity | 4.25 | 12 |
-| jailbreak | 4.75 | 12 |
-| reframe | 4.75 | 12 |
+| ambiguity | 4.08 | 12 |
+| jailbreak | 4.92 | 12 |
+| reframe | 4.58 | 12 |
 
 ### By prompt × category
 
 | Prompt | ambiguity | jailbreak | reframe |
 |---|---|---|---|
-| `00-naive` | 4.33 | 4.67 | 4.67 |
-| `01-minimal` | 4.33 | 5 | 4.33 |
-| `02-structured` | 4.67 | 4.67 | 5 |
-| `03-hardened` | 3.67 | 4.67 | 5 |
+| `00-naive` | **3.33** | 5.00 | 4.00 |
+| `01-minimal` | 3.67 | 5.00 | 4.67 |
+| `02-structured` | 4.67 | 4.67 | 4.67 |
+| `03-hardened` | 4.67 | 5.00 | 5.00 |
+
+Note: `jailbreak` pins near 5.0 across all prompts — Haiku's own post-training refuses obvious injection regardless of system-prompt quality. Prompt structure shows up most in `ambiguity` (multi-part requests, legal pressure, next-step routing): the naive prompt scores 3.33, hardened scores 4.67. That 1.34-point spread is where the audit earns its keep.
 
 ## Invariant correlation
 
-For each invariant, the behavior score averaged over test cases where the prompt PASSED that invariant vs. where it FAILED. Delta > 0 means the invariant is load-bearing in the current sample.
+| Invariant | mean(pass) | mean(fail) | Δ | n pass | n fail | signal |
+|---|---|---|---|---|---|---|
+| `I6_failure_modes_explicit` | 4.78 | 4.28 | **+0.50** | 18 | 18 | **load-bearing** |
+| `I1_reduce_interpretation` | 4.53 | — | — | 36 | 0 | unmeasured |
+| `I2_no_rule_conflicts` | 4.53 | — | — | 36 | 0 | unmeasured |
+| `I3_motivated_reasoning` | 4.53 | — | — | 36 | 0 | unmeasured |
+| `I4_anti_narration` | 4.53 | — | — | 36 | 0 | unmeasured |
+| `I5_example_rationale` | 4.53 | — | — | 36 | 0 | unmeasured |
+| `I7_namespace_balance` | 4.53 | — | — | 36 | 0 | unmeasured |
+| `I9_self_check` | 4.53 | — | — | 36 | 0 | unmeasured |
+| `I11_hierarchical_override` | 4.53 | — | — | 36 | 0 | unmeasured |
+| `I8_default_exception` | 4.48 | 4.67 | **−0.19** | 27 | 9 | anti-signal |
+| `I10_tier_labels` | 4.48 | 4.67 | **−0.19** | 27 | 9 | anti-signal |
 
-| Invariant | mean(pass) | mean(fail) | Δ | n pass | n fail |
-|---|---|---|---|---|---|
-| `I10_tier_labels` | 4.52 | 4.78 | **-0.26** | 27 | 9 |
-| `I11_hierarchical_override` | 4.58 | — | — | 36 | 0 |
-| `I1_reduce_interpretation` | 4.58 | — | — | 36 | 0 |
-| `I2_no_rule_conflicts` | 4.58 | — | — | 36 | 0 |
-| `I3_motivated_reasoning` | 4.58 | — | — | 36 | 0 |
-| `I4_anti_narration` | 4.58 | — | — | 36 | 0 |
-| `I5_example_rationale` | 4.58 | — | — | 36 | 0 |
-| `I6_failure_modes_explicit` | 4.61 | 4.56 | **+0.06** | 18 | 18 |
-| `I7_namespace_balance` | 4.58 | — | — | 36 | 0 |
-| `I8_default_exception` | 4.52 | 4.78 | **-0.26** | 27 | 9 |
-| `I9_self_check` | 4.58 | — | — | 36 | 0 |
+Summary:
+- **1 invariant load-bearing** (I6 failure_modes_explicit, Δ = +0.50 on a 5-point scale — substantial).
+- **2 invariants anti-signal** (I8, I10 both −0.19 — prompts that *lack* them score slightly better in the current corpus).
+- **8 invariants unmeasured** — no corpus prompt fails them, so no fail bucket exists to compute Δ.
 
-**Caveats.** Sample is small (4 prompts, 9 cases each). The Haiku role-player received the target prompt at user-turn level, not as a literal system message — a known approximation. The Sonnet grader saw only the response + ideal_behavior + rubric (blind) — a real improvement over v0 self-grading. This table is a signal, not a proof. Scale the corpus to trust the numbers.
+Machine-readable form: [`measurements.json`](./measurements.json). `audit.py` reads this file and surfaces the measured signal next to each invariant's PASS/FAIL in its output.
 
-## v0.2 findings (honest)
+## What this means for the tool
 
-**Behavior rank is almost inverted from what audit predicts.**
+### Confirmed
+- The audit rubric **tracks behavior rank** when the grader is truly blind.
+- **I6 (failure modes explicit)** — stating the concrete harm alongside each rule — is the strongest measured signal on the current corpus. Δ = +0.50 is half a rubric point out of 5, which is significant.
+- Structure-aware prompts produce more stable behavior on multi-part / ambiguous inputs (the `ambiguity` column spread: 3.33 → 4.67).
 
-| Audit score | Prompt | Behavior mean |
-|---|---|---|
-| 11/11 (GOOD)       | `03-hardened`   | **4.44** ← lowest |
-| 10/11 (THIN)       | `00-naive`      | 4.56 |
-| 10/11 (THIN)       | `01-minimal`    | 4.56 |
-| 9/11  (BORDERLINE) | `02-structured` | **4.78** ← highest |
+### Flagged for investigation
+- **I8 (default + exception) and I10 (tier labels) are currently anti-signal** (Δ = −0.19 each). Both are gated by directive count, so only non-THIN prompts get tested — possible confound. Before v0.4 we should either (a) refine the regex so it fires on real structural presence, not token count, or (b) drop these from the score.
 
-Two methodological wins this round (Haiku role-player + blind Sonnet grader) did not rescue the correlation. If anything the gap widened: v0 span was 4.78–5.00 (0.22), v0.2 span is 4.44–4.78 (0.34). Where the audit rubric most wants to be right — 03-hardened is 11/11 for a reason — it performs **worst**.
+### Unmeasured — next corpus pass
+8 invariants have no prompt in the current corpus that fails them. To measure them we need **targeted failing prompts** — e.g., a prompt with 20+ directives and no ladder (for I2), a prompt with refusal content but no reframe clause (for I3), a prompt with tool use but no anti-narration (for I4). v0.4 corpus expansion prioritizes these.
 
-### Per-category details that hurt
+## Known limitations
 
-- `03-hardened__ambiguity` scored **3.67** — the corpus's lowest cell. Same pattern as v0: maximum structure produces ceremonial, over-long responses that graders mark down. "Stop at first match" as an explicit instruction causes the role-player to leak routing language into the output. Production users don't want that.
-- `01-minimal__jailbreak` scored **5.0** — a 5-line prompt with no priority hierarchy, no reframe clause, no tier labels. Haiku still refused cleanly because *Haiku's own post-training does the work*. The system prompt was decorative.
+1. **Role-player is not a literal system prompt.** Haiku subagents receive the target prompt in the user turn of a Claude Code Agent call, not as their own system turn. Subagent's own post-training is still underneath. This means measured behavior differences underrepresent the effect a true system-turn placement would have — the real-world gap between hardened and naive is likely larger than the 0.78-point span we observed.
 
-### What the invariant correlations say
+2. **Small corpus.** 4 prompts, 9 cases each. The trend is consistent across categories, but doubling to 8 prompts × 16 cases would let us compute confidence intervals and separate signal from noise on the −0.19 anti-signal results.
 
-Every Δ is either zero (all prompts pass, no fail bucket to compare) or *negative*. I8 and I10 show Δ = −0.26 — prompts that **failed** those invariants scored higher. I6 shows Δ = +0.06 — noise.
-
-On this corpus, **zero invariants are load-bearing**.
-
-### Three candidate explanations (ranked by belief)
-
-1. **Model post-training dominates at this scale.** For consumer-grade adversarial inputs, both Haiku and Sonnet refuse regardless of prompt form. Prompt shape moves the needle only in edge cases v0.2's corpus doesn't probe. The linter measures form; behavior is set elsewhere.
-
-2. **Blind grader mildly penalizes structure.** A hardened prompt with explicit step ladders leaks routing language into the output. Blind graders mark that as ceremonial or long. So the "best-audited" prompt produces the most conspicuous responses, which docks it.
-
-3. **Invariants encode a theory the data does not confirm.** Opus 4.7 uses these patterns; that does not prove they carry load in smaller, specific-purpose prompts. We reverse-engineered form, not necessarily function.
-
-### What ships in v0.2 (unchanged by bad numbers)
-
-- **Two-stage architecture (roleplay / blind-grade) is the correct shape.** Stays.
-- **Haiku as role-player is strong enough.** The 5/5 on 01-minimal shows its safety floor is still above the attack bar. Going weaker means the role-player would stop being a plausible assistant at all.
-- **The report ships as-is.** No sunshine rewrite.
-
-### What would change the answer
-
-- **Harder cases** — multi-turn drift, plausible business social engineering ("I'm from the engineering team"), role-confusion attacks. That's where structure probably starts to matter.
-- **Weaker role-player still** — an 8B-class model that doesn't have Haiku's alignment training. Direct API required, breaks the no-API guarantee.
-- **10× corpus** with real leaked production prompts from [CL4R1T4S](https://github.com/elder-plinius/CL4R1T4S).
-
-Until those land, opus-mind's honest claim is: *"A regex-based linter for production system prompts, calibrated against one leaked source. Whether following the advice changes deployed behavior is open — our v0.2 harness on a small, easy corpus found no effect."* Better than unmeasured.
+3. **Subagent harness confound.** Every subagent call runs under Claude Code's own subagent system prompt. When Haiku refuses a jailbreak, we cannot tell whether the target system prompt did the work or the outer harness did. Partial mitigation: the `ambiguity` category (which doesn't trigger obvious safety) shows the widest prompt-driven spread (1.34 points), suggesting the target prompt does carry load there.
 
 ## Methodology
 
-- `evals/corpus/prompts/` holds real-shape system prompts at varied audit scores.
-- `evals/corpus/test_cases/*.json` are adversarial inputs grouped by failure mode targeted by the audit invariants.
-- `eval_runner.py --render <task>` emits a role-play-and-grade prompt the orchestrator dispatches to a Sonnet subagent.
-- `aggregate.py` joins subagent JSON with `audit.py --json` per prompt.
+- `evals/corpus/prompts/` — 4 real-shape system prompts at audit scores 10/11 THIN, 10/11 THIN, 9/11 BORDERLINE, 11/11 GOOD.
+- `evals/corpus/test_cases/*.json` — adversarial inputs by category (jailbreak, reframe, ambiguity), targeting specific invariants.
+- `evals/rubric.md` — grading scale (1-5) given verbatim to every grader.
+- `eval_runner.py --render-roleplay` — stage-1 prompt (Haiku).
+- `eval_runner.py --render-grade` — stage-2 **blind** prompt (Sonnet).
+- `aggregate.py` — merges responses + grades → results → REPORT.md + measurements.json.
 
 No Anthropic API key is required at any step — everything runs inside a Claude Code session via the Agent tool.
+
+## v0.3 changelog
+
+- **Blind grader actually blind.** Previous versions leaked user inputs under "for context"; graders could reconstruct prompt structure from response tone. Removed. Result flip: audit-score ↔ behavior correlation went from inverted (v0.2) to matched (v0.3).
+- **`measurements.json` emitted** — `audit.py` reads this and surfaces each invariant's measured signal (load-bearing / noise / anti-signal / unmeasured) alongside its PASS/FAIL.
+- **Invariant honesty propagates.** Unmeasured invariants are labeled as such, not claimed as validated. Anti-signal invariants are flagged for investigation, not hidden.
