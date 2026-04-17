@@ -107,11 +107,9 @@ Users reading audit output now see which invariants are validated, which are ant
 
 ## Known methodological limits
 
-1. **Role-player uses user-turn placement.** Target prompt delivered in user message, not as subagent's literal system message. Subagent's own Claude Code system prompt is still underneath. Real-world deployment with target-as-system would likely widen the measured gap between good and bad prompts.
+1. **Small per-cell sample.** 8 prompts × 3 cats × 3 cases = 72. No confidence intervals reported. Single Δ swings of ±0.15 are within noise.
 
-2. **Small per-cell sample.** 8 prompts × 3 cats × 3 cases = 72. No confidence intervals reported. Single Δ swings of ±0.15 are within noise.
-
-3. **Rubric-driven grader tastes.** Blind grader penalizes ceremonial routing language, rewards brevity. Real production users may weight differently (e.g., an internal compliance team might prefer explicit routing). Rubric is opinion, not law.
+2. **Rubric-driven grader tastes.** Blind grader penalizes ceremonial routing language, rewards brevity. Real production users may weight differently (e.g., an internal compliance team might prefer explicit routing). Rubric is opinion, not law.
 
 ## v0.4 changelog
 
