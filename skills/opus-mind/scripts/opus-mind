@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# opus-mind — single CLI entry for audit / decode / fix / draft.
+# opus-mind — single CLI entry for audit / decode / fix / draft / symptom.
 #
 # Usage:
-#   opus-mind audit  <path> [--json]
-#   opus-mind decode <path> [--json]
-#   opus-mind fix    <path> [--apply] [-o out.md]
-#   opus-mind draft  [-o out.md] [--answers answers.json]
+#   opus-mind audit      <path> [--json] [--crosscheck prompt|exec]
+#   opus-mind decode     <path> [--json]
+#   opus-mind fix        <path> [--apply] [-o out.md]
+#   opus-mind draft      [-o out.md] [--answers answers.json]
+#   opus-mind symptom    "<natural-language symptom>" [-n N]
+#   opus-mind crosscheck <path> [--exec]
 #   opus-mind self-audit
 #   opus-mind help
 
@@ -22,6 +24,8 @@ opus-mind — compile a prompt like a program.
   decode <path>       label which primitives are present
   fix <path>          deterministic slop rewriter
   draft [-o file]     interactive skeleton builder
+  symptom <query>     symptom → source evidence + primitive pointer
+  crosscheck <path>   emit LLM crosscheck prompt (add --exec to call API)
   self-audit          audit this skill's own SKILL.md
   help                show this message
 
@@ -37,6 +41,20 @@ case "$cmd" in
     decode)      exec "$py" "$here/decode.py" "$@" ;;
     fix)         exec "$py" "$here/fix.py" "$@" ;;
     draft)       exec "$py" "$here/draft.py" "$@" ;;
+    symptom)     exec "$py" "$here/symptom_search.py" "$@" ;;
+    crosscheck)
+        # route to audit.py --crosscheck; --exec or default prompt
+        mode="prompt"
+        filtered=()
+        for arg in "$@"; do
+            if [ "$arg" = "--exec" ]; then
+                mode="exec"
+            else
+                filtered+=("$arg")
+            fi
+        done
+        exec "$py" "$here/audit.py" "${filtered[@]}" --crosscheck "$mode"
+        ;;
     self-audit)  exec "$py" "$here/audit.py" --self ;;
     help|--help|-h|"") usage ;;
     *) echo "unknown command: $cmd" >&2; usage >&2; exit 2 ;;

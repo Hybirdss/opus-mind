@@ -21,6 +21,7 @@ sys.path.insert(0, str(SCRIPTS))
 import audit  # type: ignore  # noqa: E402
 import decode  # type: ignore  # noqa: E402
 import fix  # type: ignore  # noqa: E402
+import symptom_search  # type: ignore  # noqa: E402
 
 
 FIXTURES = HERE / "fixtures"
@@ -122,6 +123,55 @@ def test_fix_idempotent():
     once, _ = fix.rewrite(text)
     twice, _ = fix.rewrite(once)
     assert once == twice, "fix.py should be idempotent"
+
+
+# ----- symptom_search tests -----
+
+
+REFS_PATH = HERE.parent / "references" / "line-refs.md"
+
+
+def test_symptom_search_refuse_relent_hits_caution_contagion():
+    result = symptom_search.search("refuse then relent", REFS_PATH, top_n=3)
+    hits = result["symptom_hits"]
+    assert len(hits) >= 1
+    assert any(h.canonical_symptom == "caution contagion" for h in hits)
+
+
+def test_symptom_search_injection_hits_asymmetric_trust():
+    result = symptom_search.search(
+        "user turn impersonates system", REFS_PATH, top_n=3
+    )
+    hits = result["symptom_hits"]
+    assert any(h.canonical_symptom == "asymmetric trust" for h in hits)
+
+
+def test_symptom_search_returns_evidence_rows():
+    result = symptom_search.search("caution contagion", REFS_PATH, top_n=5)
+    assert result["index_rows_total"] > 50
+    assert len(result["row_matches"]) >= 1
+
+
+def test_symptom_search_nonsense_query_returns_nothing_but_no_crash():
+    result = symptom_search.search(
+        "xyzzy plugh qwerty", REFS_PATH, top_n=3
+    )
+    assert result["index_rows_total"] > 0
+    assert len(result["symptom_hits"]) == 0
+
+
+# ----- crosscheck prompt builder -----
+
+
+def test_crosscheck_prompt_contains_invariants_and_findings():
+    r = audit.audit(FIXTURES / "bad_slop.md")
+    text = (FIXTURES / "bad_slop.md").read_text(encoding="utf-8")
+    prompt = audit._build_crosscheck_prompt(r, text)
+    assert "I1 reduce interpretation" in prompt
+    assert "I4 keep internals private" in prompt
+    assert "false_positives" in prompt
+    assert "claude-opus" not in prompt.lower()  # model name lives in CLI, not the prompt
+    assert "delve" in prompt or "utilize" in prompt or "leverage" in prompt or "Tier 1 slop" in prompt or "I1" in prompt
 
 
 if __name__ == "__main__":

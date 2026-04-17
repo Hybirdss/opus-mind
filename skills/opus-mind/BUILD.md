@@ -111,17 +111,18 @@ metrics:
 
 Both findings are real. Our own example prompt has 6 Tier-1 slop words — a concrete follow-up task.
 
-## Files (v2)
+## Files (v3 — B-tier)
 
 ```
 skills/opus-mind/
 ├── SKILL.md                          218 lines, 6/6 self-audit
 ├── BUILD.md                          this file
 ├── scripts/
-│   ├── audit.py                      deterministic scorer (6 invariants)
+│   ├── audit.py                      deterministic scorer + --crosscheck LLM mode
 │   ├── decode.py                     inverse audit — label which primitives are present
 │   ├── fix.py                        deterministic slop rewriter with <FIXME> markers
 │   ├── draft.py                      interactive skeleton builder with audit gate
+│   ├── symptom_search.py             symptom → source evidence + primitive pointer
 │   ├── install-hook.sh               git pre-commit hook installer
 │   └── opus-mind                     single-entry CLI dispatcher
 ├── tests/
@@ -202,6 +203,52 @@ All 13 pass.
 | draft + answers.json produces 6/6 draft | PASS |
 | opus-mind CLI dispatches all subcommands | PASS |
 | install-hook.sh bash syntax valid | PASS |
+
+## v3 extensions (B-tier build)
+
+### symptom_search.py — symptom → source evidence
+
+Two-layer lookup:
+1. Hand-curated SYMPTOM_TABLE maps 14 canonical symptom phrases (with aliases) to primitive + technique file pointers. Alias matching: substring hit OR full-token-subset hit OR 2+ token overlap.
+2. Full-text index of `evidence/line-refs.md` (212 rows parsed as markdown tables). Token-overlap scoring with a concept-field bonus.
+
+Output block: symptom table hits (canonical + aliases + read-paths) plus top-N evidence rows (source line ref + paraphrase + tokens matched).
+
+### audit.py --crosscheck prompt|exec
+
+Adds LLM-assisted second reviewer mode:
+- `--crosscheck prompt` builds a structured prompt containing the 6 invariants, deterministic findings, target prompt excerpt (≤12000 chars), and a primitive vocabulary reference. Output: paste-ready for any LLM.
+- `--crosscheck exec` attempts to call the Anthropic API via the `anthropic` SDK using model `claude-opus-4-7` (April 2026). Falls back to printing the prompt + exit code 2 when `ANTHROPIC_API_KEY` is missing or the SDK is not installed.
+- `--crosscheck-model` flag overrides the default model (e.g. `claude-sonnet-4-6`).
+
+The crosscheck prompt asks the LLM for JSON with four keys: `false_positives`, `additional_findings`, `severity_delta`, `overall_verdict`. This keeps the output machine-parseable and composable with audit JSON.
+
+### CLI extensions
+
+Added to `opus-mind` dispatcher:
+- `opus-mind symptom "<query>"` → symptom_search.py
+- `opus-mind crosscheck <path> [--exec]` → audit.py --crosscheck
+
+### pytest additions
+
+5 new tests (18 total, all pass):
+- `test_symptom_search_refuse_relent_hits_caution_contagion`
+- `test_symptom_search_injection_hits_asymmetric_trust`
+- `test_symptom_search_returns_evidence_rows` (verifies index size > 50)
+- `test_symptom_search_nonsense_query_returns_nothing_but_no_crash`
+- `test_crosscheck_prompt_contains_invariants_and_findings`
+
+## Verification summary (v3)
+
+| Check | Result |
+|---|---|
+| Self-audit 6/6 | PASS |
+| pytest regression | 18/18 PASS |
+| symptom → primitive lookup | PASS (caution-contagion, asymmetric-trust) |
+| symptom search indexes 212 evidence rows | PASS |
+| crosscheck prompt builds from fixture | PASS (93 lines output) |
+| crosscheck --exec graceful fallback without API key | PASS |
+| opus-mind CLI dispatches symptom + crosscheck | PASS |
 
 ## Model context
 
